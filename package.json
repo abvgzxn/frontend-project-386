@@ -1,0 +1,28 @@
+{
+  "name": "call-calendar",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "contracts"
+  ],
+  "type": "module",
+  "scripts": {
+    "install:project": "npm ci",
+    "generate": "npm run generate --workspace @call-calendar/contracts && npm run generate --workspace @call-calendar/api-client",
+    "dev": "npm run dev --workspace @call-calendar/web",
+    "build": "npm run build --workspace @call-calendar/api && npm run build --workspace @call-calendar/web",
+    "lint": "oxlint . && oxfmt --check . && jactionlint --ignore duplicate-triggers .github/workflows/ci.yml",
+    "typecheck": "npm run typecheck --workspace @call-calendar/api && npm run typecheck --workspace @call-calendar/web",
+    "test": "npm run test --workspace @call-calendar/api",
+    "check": "npm run generate && npm run lint && npm run typecheck && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "oxfmt": "0.79.0",
+    "oxlint": "1.94.0",
+    "typescript": "5.8.3"
+  },
+  "engines": {
+    "node": ">=22.12.0 <23"
+  }
+}

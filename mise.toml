@@ -1,0 +1,49 @@
+[settings]
+experimental = true
+
+[tools]
+node = "22.22.0"
+hk = "2.12.0"
+pitchfork = "2.30.0"
+jactionlint = "2.6.0"
+
+[tasks.install]
+run = "npm ci"
+
+[tasks.generate]
+run = "npm run generate"
+
+[tasks.dev]
+run = "echo 'Development daemons are ready'"
+daemons = true
+
+[tasks.build]
+run = "npm run build"
+depends = ["generate"]
+
+[tasks.lint]
+run = "npm run lint"
+depends = ["generate"]
+
+[tasks.typecheck]
+run = "npm run typecheck"
+depends = ["generate"]
+
+[tasks.test]
+run = "npm run test"
+depends = ["generate"]
+
+[tasks.check]
+run = "npm run lint && npm run typecheck && npm run test && npm run build"
+depends = ["generate"]
+
+[tasks."dev:api"]
+run = "npm run dev --workspace @call-calendar/api"
+
+[daemons.api]
+run = "exec npm run dev --workspace @call-calendar/api"
+ready_port = 3000
+
+[daemons.web]
+run = "exec npm run dev --workspace @call-calendar/web -- --host 127.0.0.1"
+ready_port = 5173

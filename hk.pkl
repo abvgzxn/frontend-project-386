@@ -1,0 +1,13 @@
+amends "package://github.com/jdx/hk/releases/download/v2.12.0/hk@2.12.0#/Config.pkl"
+
+hooks {
+  ["pre-commit"] {
+    steps { ["project-check"] { check = "mise run check" } }
+  }
+  ["pre-push"] {
+    steps { ["project-check"] { check = "mise run check" } }
+  }
+  ["check"] {
+    steps { ["project-check"] { check = "mise run check" } }
+  }
+}
