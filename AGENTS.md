@@ -26,3 +26,21 @@
 - The API smoke test in `apps/api/src/health.test.ts` uses a real HTTP request on a dynamically allocated port and closes every server in `afterEach`; preserve that isolation pattern.
 - `hk` runs `mise run check` for `pre-commit`, `pre-push`, and `hk check`; CI runs the same `mise run check` on push and pull requests.
 - Use Conventional Commits, for example `feat:`, `fix:`, `chore:`, or `docs:`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues; use the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five standard labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use the project glossary and ADRs described in `docs/agents/domain.md`.
+
+### Workflows
+
+Use `/wayfinder` for large planning efforts and `/implement-spec` to implement a spec; see `.agents/skills/`.

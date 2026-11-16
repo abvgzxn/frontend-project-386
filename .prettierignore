@@ -1,2 +1,3 @@
 # Managed externally by Hexlet; preserve its required formatting.
 .github/workflows/hexlet-check.yml
+.agents/skills/
