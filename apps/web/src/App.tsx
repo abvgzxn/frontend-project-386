@@ -48,17 +48,49 @@ function AppLink({
   );
 }
 
+function ArrowIcon({ direction = "up" }: { direction?: "up" | "left" }) {
+  return (
+    <svg aria-hidden="true" className="icon" fill="none" focusable="false" viewBox="0 0 16 16">
+      {direction === "left" ? (
+        <>
+          <path d="M14 8H2" />
+          <path d="m7 3-5 5 5 5" />
+        </>
+      ) : (
+        <>
+          <path d="M3 13 13 3" />
+          <path d="M5 3h8v8" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function SparkIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="spark-icon"
+      fill="none"
+      focusable="false"
+      viewBox="0 0 24 24"
+    >
+      <path d="m12 1 1.6 8.4L22 12l-8.4 1.6L12 22l-1.6-8.4L2 12l8.4-2.6L12 1Z" />
+    </svg>
+  );
+}
+
 function Header() {
   return (
     <header className="site-header">
       <AppLink className="brand" href="/" ariaLabel="Календарь звонков, главная">
         <span className="brand-mark" aria-hidden="true">
-          ↗
+          <ArrowIcon />
         </span>
         <span>Календарь звонков</span>
       </AppLink>
       <AppLink className="header-link" href={bookingPath}>
-        Записаться <span aria-hidden="true">↗</span>
+        Записаться <ArrowIcon />
       </AppLink>
     </header>
   );
@@ -79,8 +111,12 @@ function AbstractGraphic() {
         <span className="graphic-dot" />
         Без регистрации
       </div>
-      <span className="graphic-star graphic-star-one">✦</span>
-      <span className="graphic-star graphic-star-two">✦</span>
+      <span className="graphic-star graphic-star-one">
+        <SparkIcon />
+      </span>
+      <span className="graphic-star graphic-star-two">
+        <SparkIcon />
+      </span>
     </div>
   );
 }
@@ -96,7 +132,7 @@ function HomePage() {
             Выберите подходящий формат встречи и свободное время. Регистрация не требуется.
           </p>
           <AppLink className="primary-button" href={bookingPath}>
-            Записаться на звонок <span aria-hidden="true">↗</span>
+            Записаться на звонок <ArrowIcon />
           </AppLink>
         </div>
         <AbstractGraphic />
@@ -132,7 +168,7 @@ function BookingPlaceholder() {
   return (
     <main className="placeholder-page" aria-labelledby="placeholder-title">
       <div className="placeholder-icon" aria-hidden="true">
-        ↗
+        <ArrowIcon />
       </div>
       <p className="eyebrow">Страница записи</p>
       <h1 id="placeholder-title">Запись на звонок скоро будет доступна</h1>
@@ -141,7 +177,8 @@ function BookingPlaceholder() {
         Вернитесь немного позже.
       </p>
       <AppLink className="secondary-button" href="/">
-        <span aria-hidden="true">←</span>Вернуться на главную
+        <ArrowIcon direction="left" />
+        Вернуться на главную
       </AppLink>
     </main>
   );
