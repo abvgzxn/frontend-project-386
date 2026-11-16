@@ -1,44 +1,168 @@
-import { Badge, Container, Paper, Stack, Text, Title } from "@mantine/core";
-import { useEffect, useState } from "react";
-import { client, health } from "@call-calendar/api-client";
+import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import "./App.css";
 
-export function App() {
-  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+const bookingPath = "/book";
+
+function usePathname() {
+  const [pathname, setPathname] = useState(() => window.location.pathname);
 
   useEffect(() => {
-    client.setConfig({ baseUrl: "" });
-    health({ throwOnError: true })
-      .then(() => setStatus("ok"))
-      .catch(() => setStatus("error"));
+    const handlePopState = () => setPathname(window.location.pathname);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  return pathname;
+}
+
+function AppLink({
+  href,
+  children,
+  className,
+  ariaLabel,
+}: {
+  href: string;
+  children: ReactNode;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
+    event.preventDefault();
+    window.history.pushState({}, "", href);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
   return (
-    <Container size="sm" py={80}>
-      <Stack gap="xl">
-        <Text c="teal" fw={700} tt="uppercase" size="sm">
-          Учебный проект
-        </Text>
-        <Title order={1}>Календарь звонков</Title>
-        <Text c="dimmed" size="lg">
-          Каркас сервиса записи на звонки. Бизнес-сценарии подключим следующим шагом.
-        </Text>
-        <Paper withBorder radius="lg" p="xl">
-          <Stack gap="sm">
-            <Text fw={600}>Проверка API</Text>
-            <Badge
-              color={status === "ok" ? "teal" : status === "error" ? "red" : "gray"}
-              size="lg"
-              variant="light"
-            >
-              {status === "loading"
-                ? "Проверяем..."
-                : status === "ok"
-                  ? "API доступен"
-                  : "API недоступен"}
-            </Badge>
-          </Stack>
-        </Paper>
-      </Stack>
-    </Container>
+    <a className={className} href={href} onClick={handleClick} aria-label={ariaLabel}>
+      {children}
+    </a>
+  );
+}
+
+function Header() {
+  return (
+    <header className="site-header">
+      <AppLink className="brand" href="/" ariaLabel="Календарь звонков, главная">
+        <span className="brand-mark" aria-hidden="true">
+          ↗
+        </span>
+        <span>Календарь звонков</span>
+      </AppLink>
+      <AppLink className="header-link" href={bookingPath}>
+        Записаться <span aria-hidden="true">↗</span>
+      </AppLink>
+    </header>
+  );
+}
+
+function AbstractGraphic() {
+  return (
+    <div className="abstract-graphic" aria-hidden="true">
+      <div className="graphic-orbit graphic-orbit-one" />
+      <div className="graphic-orbit graphic-orbit-two" />
+      <div className="graphic-card graphic-card-main">
+        <span className="graphic-card-label">Ближайшее время</span>
+        <strong>Свободное время</strong>
+        <span className="graphic-card-line" />
+        <span className="graphic-card-line graphic-card-line-short" />
+      </div>
+      <div className="graphic-card graphic-card-small">
+        <span className="graphic-dot" />
+        Без регистрации
+      </div>
+      <span className="graphic-star graphic-star-one">✦</span>
+      <span className="graphic-star graphic-star-two">✦</span>
+    </div>
+  );
+}
+
+function HomePage() {
+  return (
+    <>
+      <section className="hero" aria-labelledby="hero-title">
+        <div className="hero-copy">
+          <p className="eyebrow">Пространство для разговора</p>
+          <h1 id="hero-title">Запишитесь на удобный звонок</h1>
+          <p className="hero-description">
+            Выберите подходящий формат встречи и свободное время. Регистрация не требуется.
+          </p>
+          <AppLink className="primary-button" href={bookingPath}>
+            Записаться на звонок <span aria-hidden="true">↗</span>
+          </AppLink>
+        </div>
+        <AbstractGraphic />
+      </section>
+      <section className="steps-section" aria-labelledby="steps-title">
+        <div className="section-heading">
+          <p className="eyebrow">Три простых шага</p>
+          <h2 id="steps-title">Всё начинается с подходящего времени</h2>
+        </div>
+        <ol className="steps-list">
+          <li>
+            <span className="step-number">01</span>
+            <h3>Выберите формат</h3>
+            <p>Найдите вариант разговора, который подходит вашей задаче.</p>
+          </li>
+          <li>
+            <span className="step-number">02</span>
+            <h3>Найдите удобное время</h3>
+            <p>Посмотрите доступные варианты и выберите подходящий момент.</p>
+          </li>
+          <li>
+            <span className="step-number">03</span>
+            <h3>Подтвердите запись</h3>
+            <p>Оставьте нужный контекст и завершите договорённость о звонке.</p>
+          </li>
+        </ol>
+      </section>
+    </>
+  );
+}
+
+function BookingPlaceholder() {
+  return (
+    <main className="placeholder-page" aria-labelledby="placeholder-title">
+      <div className="placeholder-icon" aria-hidden="true">
+        ↗
+      </div>
+      <p className="eyebrow">Страница записи</p>
+      <h1 id="placeholder-title">Запись на звонок скоро будет доступна</h1>
+      <p>
+        Мы готовим страницу записи, где можно будет выбрать формат встречи и удобное время.
+        Вернитесь немного позже.
+      </p>
+      <AppLink className="secondary-button" href="/">
+        <span aria-hidden="true">←</span>Вернуться на главную
+      </AppLink>
+    </main>
+  );
+}
+
+export function App() {
+  const pathname = usePathname();
+  return (
+    <div className="app-shell">
+      <Header />
+      {pathname === bookingPath ? (
+        <BookingPlaceholder />
+      ) : (
+        <main>
+          <HomePage />
+        </main>
+      )}
+      <footer className="site-footer">
+        <span>Календарь звонков</span>
+        <span>Разговоры, которые удобно планировать</span>
+      </footer>
+    </div>
   );
 }

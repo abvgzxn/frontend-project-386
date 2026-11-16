@@ -14,7 +14,7 @@
     "build": "npm run build --workspace @call-calendar/api && npm run build --workspace @call-calendar/web",
     "lint": "oxlint . && oxfmt --check . && jactionlint --ignore duplicate-triggers .github/workflows/ci.yml",
     "typecheck": "npm run typecheck --workspace @call-calendar/api && npm run typecheck --workspace @call-calendar/web",
-    "test": "npm run test --workspace @call-calendar/api",
+    "test": "npm run test --workspace @call-calendar/api && npm run test --workspace @call-calendar/web",
     "check": "npm run generate && npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "devDependencies": {
