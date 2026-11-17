@@ -684,7 +684,7 @@ export function App({
 } = {}) {
   const pathname = usePathname();
   return (
-    <MantineProvider>
+    <MantineProvider defaultColorScheme="dark">
       <div className="app-shell">
         <Header />
         {pathname === "/owner" ? (
