@@ -147,6 +147,30 @@ h1 {
     color 180ms ease,
     transform 180ms ease;
 }
+.owner-page {
+  width: min(720px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 72px 0 120px;
+}
+.owner-page h1,
+.booking-page h1 {
+  margin-bottom: 18px;
+  font-size: clamp(2.8rem, 7vw, 5rem);
+}
+.owner-card {
+  margin-top: 38px;
+  border-color: #373a33;
+  background: rgba(28, 30, 28, 0.82);
+}
+.owner-card label {
+  color: #caccc3;
+}
+@media (max-width: 680px) {
+  .owner-page {
+    width: min(100% - 36px, 720px);
+    padding-top: 44px;
+  }
+}
 .primary-button {
   min-height: 52px;
   padding: 17px 21px 17px 24px;

@@ -1,6 +1,18 @@
-import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
-import { Alert, Card, Group, MantineProvider, Stack, Text, Title } from "@mantine/core";
-import { meetingTypesList, type MeetingType } from "@call-calendar/api-client";
+import { useEffect, useState, type FormEvent, type MouseEvent, type ReactNode } from "react";
+import {
+  Alert,
+  Button,
+  Card,
+  Group,
+  MantineProvider,
+  NumberInput,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+  Title,
+} from "@mantine/core";
+import { meetingTypesCreate, meetingTypesList, type MeetingType } from "@call-calendar/api-client";
 import "./App.css";
 
 const bookingPath = "/book";
@@ -174,6 +186,16 @@ async function loadMeetingTypesFromApi() {
   return response.data.meetingTypes;
 }
 
+async function createMeetingTypeFromApi(input: {
+  name: string;
+  description: string;
+  durationMinutes: number;
+}) {
+  const response = await meetingTypesCreate({ body: input });
+  if (response.error || !response.data) throw new Error("Meeting type creation failed");
+  return response.data.meetingType;
+}
+
 function BookingPage({
   loadMeetingTypes = loadMeetingTypesFromApi,
 }: {
@@ -234,13 +256,116 @@ function BookingPage({
   );
 }
 
-export function App({ loadMeetingTypes }: { loadMeetingTypes?: LoadMeetingTypes } = {}) {
+type CreateMeetingType = (input: {
+  name: string;
+  description: string;
+  durationMinutes: number;
+}) => Promise<MeetingType>;
+
+function OwnerPage({
+  createMeetingType = createMeetingTypeFromApi,
+}: {
+  createMeetingType?: CreateMeetingType;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [duration, setDuration] = useState<number | string>(30);
+  const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<MeetingType | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmedName = name.trim();
+    const trimmedDescription = description.trim();
+    if (!trimmedName || !trimmedDescription) {
+      return setError(
+        [!trimmedName && "Введите название", !trimmedDescription && "Введите описание"]
+          .filter(Boolean)
+          .join(". "),
+      );
+    }
+    if (typeof duration !== "number" || !Number.isInteger(duration) || duration <= 0) {
+      return setError("Укажите положительную целую длительность");
+    }
+
+    setError(null);
+    setSaving(true);
+    try {
+      setCreated(
+        await createMeetingType({
+          name: trimmedName,
+          description: trimmedDescription,
+          durationMinutes: duration,
+        }),
+      );
+    } catch {
+      setError("Не удалось создать тип встречи. Попробуйте ещё раз.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <main className="owner-page" aria-labelledby="owner-title">
+      <p className="eyebrow">Владелец календаря</p>
+      <Title id="owner-title" order={1}>
+        Новый тип встречи
+      </Title>
+      <Text className="booking-intro">Добавьте формат звонка, который будет виден гостям.</Text>
+      <Card className="owner-card" withBorder>
+        <form onSubmit={handleSubmit}>
+          <Stack gap="lg">
+            {error && <Alert color="red">{error}</Alert>}
+            {created && (
+              <Alert color="green" title="Тип встречи создан">
+                {created.name} добавлен в каталог.
+              </Alert>
+            )}
+            <TextInput
+              label="Название"
+              name="name"
+              value={name}
+              onChange={(event) => setName(event.currentTarget.value)}
+            />
+            <Textarea
+              label="Описание"
+              name="description"
+              value={description}
+              onChange={(event) => setDescription(event.currentTarget.value)}
+            />
+            <NumberInput
+              label="Длительность, минут"
+              name="durationMinutes"
+              min={1}
+              value={duration}
+              onChange={setDuration}
+            />
+            <Button type="submit" loading={saving}>
+              Создать тип встречи
+            </Button>
+          </Stack>
+        </form>
+      </Card>
+    </main>
+  );
+}
+
+export function App({
+  loadMeetingTypes,
+  createMeetingType,
+}: {
+  loadMeetingTypes?: LoadMeetingTypes;
+  createMeetingType?: CreateMeetingType;
+} = {}) {
   const pathname = usePathname();
   return (
     <MantineProvider>
       <div className="app-shell">
         <Header />
-        {pathname === bookingPath ? (
+        {pathname === "/owner" ? (
+          <OwnerPage createMeetingType={createMeetingType} />
+        ) : pathname === bookingPath ? (
           <BookingPage loadMeetingTypes={loadMeetingTypes} />
         ) : (
           <main>

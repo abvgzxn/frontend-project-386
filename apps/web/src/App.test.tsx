@@ -22,12 +22,18 @@ window.matchMedia = () =>
 let root: Root;
 let container: HTMLDivElement;
 
-async function renderApp(pathname = "/", loadMeetingTypes?: () => Promise<MeetingType[]>) {
+async function renderApp(
+  pathname = "/",
+  loadMeetingTypes?: () => Promise<MeetingType[]>,
+  createMeetingType?: () => Promise<MeetingType>,
+) {
   window.history.replaceState({}, "", pathname);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(() => root.render(<App loadMeetingTypes={loadMeetingTypes} />));
+  await act(() =>
+    root.render(<App loadMeetingTypes={loadMeetingTypes} createMeetingType={createMeetingType} />),
+  );
 }
 
 afterEach(async () => {
@@ -98,5 +104,52 @@ describe("public booking journey", () => {
 
     expect(window.location.pathname).toBe("/");
     expect(container.querySelector("h1")?.textContent).toBe("Запишитесь на удобный звонок");
+  });
+});
+
+describe("owner meeting type form", () => {
+  it("submits a meeting type and shows the success state", async () => {
+    await renderApp("/owner", undefined, async () => ({
+      id: "mt_intro",
+      name: "Знакомство",
+      description: "Короткий вводный звонок",
+      durationMinutes: 30,
+    }));
+
+    const name = container.querySelector<HTMLInputElement>('[name="name"]')!;
+    const description = container.querySelector<HTMLTextAreaElement>('[name="description"]')!;
+    const duration = container.querySelector<HTMLInputElement>('[name="durationMinutes"]')!;
+    await act(async () => {
+      const setValue = (element: HTMLInputElement | HTMLTextAreaElement, value: string) => {
+        const setter = Object.getOwnPropertyDescriptor(element.constructor.prototype, "value")?.set;
+        setter?.call(element, value);
+        element.dispatchEvent(new Event("input", { bubbles: true }));
+      };
+      setValue(name, "  Знакомство  ");
+      setValue(description, "  Короткий вводный звонок  ");
+      setValue(duration, "30");
+      container
+        .querySelector("form")
+        ?.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain("Тип встречи создан");
+    expect(container.textContent).toContain("Знакомство");
+  });
+
+  it("shows validation errors without submitting empty fields", async () => {
+    await renderApp("/owner", undefined, async () => {
+      throw new Error("should not submit");
+    });
+
+    await act(() =>
+      container
+        .querySelector("form")
+        ?.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true })),
+    );
+
+    expect(container.textContent).toContain("Введите название");
+    expect(container.textContent).toContain("Введите описание");
   });
 });
