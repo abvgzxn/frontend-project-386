@@ -390,9 +390,13 @@ function BookingPage({
           Попробуйте обновить страницу.
         </Alert>
       ) : meetingTypes === null ? (
-        <Text role="status">Загрузка типов встреч...</Text>
+        <Text className="status-text" role="status">
+          Загрузка типов встреч...
+        </Text>
       ) : meetingTypes.length === 0 ? (
-        <Text role="status">Пока нет доступных типов встреч</Text>
+        <Text className="status-text" role="status">
+          Пока нет доступных типов встреч
+        </Text>
       ) : (
         <Stack className="meeting-type-list" gap="md">
           {meetingTypes.map((meetingType) => (
@@ -436,9 +440,13 @@ function BookingPage({
             ))}
           </div>
           {availableStarts === null ? (
-            <Text role="status">Загрузка доступного времени...</Text>
+            <Text className="status-text" role="status">
+              Загрузка доступного времени...
+            </Text>
           ) : availableStarts.length === 0 ? (
-            <Text role="status">На этот день нет доступного времени</Text>
+            <Text className="status-text" role="status">
+              На этот день нет доступного времени
+            </Text>
           ) : (
             <div className="slot-list" aria-label="Доступное время">
               {availableStarts.map((availableStart) => (
@@ -632,9 +640,13 @@ function OwnerBookingsPage({
           Попробуйте обновить страницу.
         </Alert>
       ) : bookings === null ? (
-        <Text role="status">Загрузка предстоящих записей...</Text>
+        <Text className="status-text" role="status">
+          Загрузка предстоящих записей...
+        </Text>
       ) : bookings.length === 0 ? (
-        <Text role="status">Предстоящих записей пока нет</Text>
+        <Text className="status-text" role="status">
+          Предстоящих записей пока нет
+        </Text>
       ) : (
         <Stack className="upcoming-booking-list" gap="md">
           {bookings.map((booking) => (
