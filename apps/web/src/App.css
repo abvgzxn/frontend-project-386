@@ -162,6 +162,37 @@ h1 {
   border-color: #373a33;
   background: rgba(28, 30, 28, 0.82);
 }
+.upcoming-booking-list {
+  margin-top: 38px;
+}
+.upcoming-booking-card {
+  border-color: #373a33;
+  background: rgba(28, 30, 28, 0.82);
+}
+.booking-type {
+  margin-bottom: 8px;
+  color: #d5fa76;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.upcoming-booking-card h2 {
+  margin-bottom: 0;
+  font-size: 1.55rem;
+}
+.booking-date,
+.booking-time {
+  color: #caccc3;
+}
+.booking-date {
+  text-align: right;
+}
+.booking-time {
+  margin-top: 22px;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
 .booking-page {
   width: min(920px, calc(100% - 64px));
   margin: 0 auto;

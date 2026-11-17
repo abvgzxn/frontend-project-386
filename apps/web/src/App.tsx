@@ -15,6 +15,7 @@ import {
 import {
   meetingTypesAvailability,
   bookingsCreate,
+  bookingsUpcoming,
   meetingTypesCreate,
   meetingTypesList,
   type AvailabilitySlot,
@@ -234,6 +235,29 @@ async function createBookingFromApi(input: {
     throw error;
   }
   return response.data.booking;
+}
+
+type UpcomingBooking = Booking & { meetingTypeName: string };
+type LoadUpcomingBookings = () => Promise<UpcomingBooking[]>;
+
+async function loadUpcomingBookingsFromApi() {
+  const [bookingsResponse, meetingTypesResponse] = await Promise.all([
+    bookingsUpcoming(),
+    meetingTypesList(),
+  ]);
+  if (
+    bookingsResponse.error ||
+    !bookingsResponse.data ||
+    meetingTypesResponse.error ||
+    !meetingTypesResponse.data
+  ) {
+    throw new Error("Upcoming bookings request failed");
+  }
+  const names = new Map(meetingTypesResponse.data.meetingTypes.map((type) => [type.id, type.name]));
+  return bookingsResponse.data.bookings.map((booking) => ({
+    ...booking,
+    meetingTypeName: names.get(booking.meetingTypeId) ?? "Неизвестный тип встречи",
+  }));
 }
 
 function moscowDate() {
@@ -561,16 +585,86 @@ function OwnerPage({
   );
 }
 
+function formatDateTimeDate(timestamp: string) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Moscow",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(timestamp));
+}
+
+function OwnerBookingsPage({
+  loadUpcomingBookings = loadUpcomingBookingsFromApi,
+}: {
+  loadUpcomingBookings?: LoadUpcomingBookings;
+}) {
+  const [bookings, setBookings] = useState<UpcomingBooking[] | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void loadUpcomingBookings()
+      .then((nextBookings) => {
+        if (active) setBookings(nextBookings);
+      })
+      .catch(() => {
+        if (active) setError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadUpcomingBookings]);
+
+  return (
+    <main className="owner-page" aria-labelledby="owner-bookings-title">
+      <p className="eyebrow">Владелец календаря</p>
+      <Title id="owner-bookings-title" order={1}>
+        Предстоящие записи
+      </Title>
+      <Text className="booking-intro">Все подтверждённые звонки, которые ещё впереди.</Text>
+      {error ? (
+        <Alert color="red" title="Не удалось загрузить записи">
+          Попробуйте обновить страницу.
+        </Alert>
+      ) : bookings === null ? (
+        <Text role="status">Загрузка предстоящих записей...</Text>
+      ) : bookings.length === 0 ? (
+        <Text role="status">Предстоящих записей пока нет</Text>
+      ) : (
+        <Stack className="upcoming-booking-list" gap="md">
+          {bookings.map((booking) => (
+            <Card className="upcoming-booking-card" key={booking.id} withBorder>
+              <Group justify="space-between" align="flex-start" wrap="wrap">
+                <div>
+                  <Text className="booking-type">{booking.meetingTypeName}</Text>
+                  <Title order={2}>{booking.guestName}</Title>
+                </div>
+                <Text className="booking-date">{formatDateTimeDate(booking.startsAt)}</Text>
+              </Group>
+              <Text className="booking-time">
+                {formatTime(booking.startsAt)}–{formatTime(booking.endsAt)}
+              </Text>
+            </Card>
+          ))}
+        </Stack>
+      )}
+    </main>
+  );
+}
+
 export function App({
   loadMeetingTypes,
   createMeetingType,
   loadAvailability,
   createBooking,
+  loadUpcomingBookings,
 }: {
   loadMeetingTypes?: LoadMeetingTypes;
   createMeetingType?: CreateMeetingType;
   loadAvailability?: LoadAvailability;
   createBooking?: CreateBooking;
+  loadUpcomingBookings?: LoadUpcomingBookings;
 } = {}) {
   const pathname = usePathname();
   return (
@@ -579,6 +673,8 @@ export function App({
         <Header />
         {pathname === "/owner" ? (
           <OwnerPage createMeetingType={createMeetingType} />
+        ) : pathname === "/owner/bookings" ? (
+          <OwnerBookingsPage loadUpcomingBookings={loadUpcomingBookings} />
         ) : pathname === bookingPath ? (
           <BookingPage
             loadMeetingTypes={loadMeetingTypes}

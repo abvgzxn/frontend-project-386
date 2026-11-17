@@ -169,12 +169,37 @@ export function buildApp(options: AppOptions = {}) {
     return reply.code(201).send(result);
   });
 
-  app.get("/api/bookings/upcoming", async () => ({
-    bookings: bookingRepository
-      .list()
-      .filter((booking) => new Date(booking.startsAt) > now())
-      .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.endsAt.localeCompare(b.endsAt)),
-  }));
+  app.get(
+    "/api/bookings/upcoming",
+    {
+      schema: {
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              bookings: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    meetingTypeId: { type: "string" },
+                    guestName: { type: "string" },
+                    startsAt: { type: "string" },
+                    endsAt: { type: "string" },
+                    createdAt: { type: "string" },
+                  },
+                  required: ["id", "meetingTypeId", "guestName", "startsAt", "endsAt", "createdAt"],
+                },
+              },
+            },
+            required: ["bookings"],
+          },
+        },
+      },
+    },
+    async () => ({ bookings: bookingRepository.upcoming() }),
+  );
 
   return app;
 }
