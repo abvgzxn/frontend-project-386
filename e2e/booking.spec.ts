@@ -4,6 +4,8 @@ test("owner and guest complete a booking and recover from a real conflict", asyn
   page,
   request,
 }) => {
+  const controlledNow = process.env.E2E_CONTROLLED_NOW ?? "2026-06-05T08:00:00.000Z";
+  await page.clock.install({ time: new Date(controlledNow) });
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const meetingName = `E2E звонок ${suffix}`;
   const guestName = `Гость ${suffix}`;

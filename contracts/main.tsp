@@ -33,7 +33,7 @@ model MeetingTypeResponse {
   meetingType: MeetingType;
 }
 
-model AvailabilitySlot {
+model AvailableStart {
   startsAt: string;
   endsAt: string;
 }
@@ -42,7 +42,7 @@ model MeetingTypeAvailabilityResponse {
   meetingTypeId: string;
   from: string;
   to: string;
-  slots: AvailabilitySlot[];
+  slots: AvailableStart[];
 }
 
 model Booking {
