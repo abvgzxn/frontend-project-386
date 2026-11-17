@@ -69,6 +69,7 @@ OpenAPI 3.1 и Fetch SDK через Hey API. Инструменты и зада�
 (`GET /api/bookings/upcoming`) и страницы `/book`, `/owner`, `/owner/bookings`.
 Сервер хранит типы встреч и записи в памяти одного процесса API;
 перезапуск API сбрасывает данные. Долговременное хранение, горизонтальное масштабирование,
+и восстановление данных после перезапуска не входят в текущий объём.
 Приложение собирается одним multi-stage Docker-образом: production API раздаёт
 также собранный frontend на том же порту. Данные по-прежнему хранятся в памяти
 и сбрасываются при перезапуске контейнера.
@@ -83,5 +84,9 @@ docker build -t call-calendar .
 docker run --rm -p 3000:3000 call-calendar
 node scripts/docker-smoke.mjs http://127.0.0.1:3000
 ```
+
+Для подключения MCP используйте проектный `opencode.jsonc`; конфигурация не
+содержит секретов. После OAuth-авторизации выполните `opencode mcp list` и
+`opencode mcp auth railway` или `opencode mcp auth render`.
 
 Команды установки, запуска и проверок описаны в `CONTRIBUTING.md`.
