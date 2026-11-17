@@ -26,6 +26,7 @@
 - The API smoke test in `apps/api/src/health.test.ts` uses a real HTTP request on a dynamically allocated port and closes every server in `afterEach`; preserve that isolation pattern.
 - `hk` runs `mise run check` for `pre-commit`, `pre-push`, and `hk check`; CI runs the same `mise run check` on push and pull requests.
 - Use Conventional Commits, for example `feat:`, `fix:`, `chore:`, or `docs:`.
+- Каждый коммит реализации содержит номер соответствующего тикета, например `feat: add meeting type catalog (#16)`.
 
 ## Agent skills
 

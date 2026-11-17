@@ -47,6 +47,7 @@ a:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 11px;
+  color: #f4f1eb;
   font-size: 15px;
   font-weight: 650;
   letter-spacing: -0.02em;
@@ -146,6 +147,108 @@ h1 {
     background 180ms ease,
     color 180ms ease,
     transform 180ms ease;
+}
+.owner-page {
+  width: min(720px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 72px 0 120px;
+}
+.owner-page h1 {
+  margin-bottom: 18px;
+  font-size: clamp(2.8rem, 7vw, 5rem);
+}
+.owner-card {
+  margin-top: 38px;
+  border-color: #373a33;
+  background: rgba(28, 30, 28, 0.82);
+}
+.owner-card input,
+.owner-card textarea {
+  border-color: #4a4d43;
+  color: #f4f1eb;
+  background: #121412;
+}
+.owner-card button {
+  color: #0c0d0f;
+  background: #d5fa76;
+}
+.owner-card button:hover {
+  background: #e2ff9d;
+}
+.status-text {
+  color: #aaa9a2;
+}
+.upcoming-booking-list {
+  margin-top: 38px;
+}
+.upcoming-booking-card {
+  border-color: #373a33;
+  background: rgba(28, 30, 28, 0.82);
+}
+.booking-type {
+  margin-bottom: 8px;
+  color: #d5fa76;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.upcoming-booking-card h2 {
+  margin-bottom: 0;
+  font-size: 1.55rem;
+}
+.booking-date,
+.booking-time {
+  color: #caccc3;
+}
+.booking-date {
+  text-align: right;
+}
+.booking-time {
+  margin-top: 22px;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+.availability-panel {
+  margin-top: 44px;
+  padding-top: 34px;
+  border-top: 1px solid #373a33;
+}
+.date-list,
+.slot-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 22px 0;
+}
+.date-button,
+.slot-button {
+  min-height: 44px;
+  padding: 9px 14px;
+  border: 1px solid #4a4d43;
+  border-radius: 999px;
+  color: #caccc3;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+.date-button:hover,
+.date-button.selected,
+.slot-button:hover,
+.slot-button.selected {
+  border-color: #d5fa76;
+  color: #0c0d0f;
+  background: #d5fa76;
+}
+.owner-card label {
+  color: #caccc3;
+}
+@media (max-width: 680px) {
+  .owner-page,
+  .booking-page {
+    width: min(100% - 36px, 720px);
+    padding-top: 44px;
+  }
 }
 .primary-button {
   min-height: 52px;
@@ -319,6 +422,52 @@ h1 {
   justify-content: center;
   padding: 90px 0;
 }
+.booking-page {
+  width: min(820px, calc(100% - 64px));
+  min-height: calc(100vh - 180px);
+  margin: 0 auto;
+  padding: 90px 0;
+}
+.booking-page h1 {
+  max-width: 700px;
+  margin-bottom: 20px;
+  font-size: clamp(3rem, 7vw, 5.7rem);
+}
+.booking-intro {
+  max-width: 480px;
+  margin-bottom: 42px;
+  color: #aaa9a2;
+  font-size: 18px;
+  line-height: 1.55;
+}
+.meeting-type-list {
+  max-width: 700px;
+}
+.meeting-type-card {
+  cursor: pointer;
+  text-align: left;
+  border-color: #373a33;
+  background: rgba(28, 30, 28, 0.9);
+  color: #f4f1eb;
+}
+.meeting-type-card:hover,
+.meeting-type-card.selected {
+  border-color: #d5fa76;
+}
+.meeting-type-card h2 {
+  margin-bottom: 8px;
+  color: #f4f1eb;
+  font-size: 24px;
+}
+.meeting-type-card p {
+  color: #aaa9a2;
+}
+.duration {
+  flex: 0 0 auto;
+  color: #d5fa76;
+  font-size: 14px;
+  white-space: nowrap;
+}
 .placeholder-icon {
   display: grid;
   width: 58px;
@@ -430,6 +579,14 @@ h1 {
     width: min(100% - 40px, 560px);
     min-height: calc(100vh - 130px);
     padding: 60px 0;
+  }
+  .booking-page {
+    width: min(100% - 40px, 560px);
+    min-height: calc(100vh - 130px);
+    padding: 60px 0;
+  }
+  .booking-page h1 {
+    font-size: clamp(3.2rem, 15vw, 5rem);
   }
   .placeholder-page h1 {
     font-size: clamp(3.2rem, 15vw, 5rem);

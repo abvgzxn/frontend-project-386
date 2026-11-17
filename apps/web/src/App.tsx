@@ -1,4 +1,27 @@
-import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type MouseEvent, type ReactNode } from "react";
+import {
+  Alert,
+  Button,
+  Card,
+  Group,
+  MantineProvider,
+  NumberInput,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+  Title,
+} from "@mantine/core";
+import {
+  meetingTypesAvailability,
+  bookingsCreate,
+  bookingsUpcoming,
+  meetingTypesCreate,
+  meetingTypesList,
+  type AvailableStart,
+  type Booking,
+  type MeetingType,
+} from "@call-calendar/api-client";
 import "./App.css";
 
 const bookingPath = "/book";
@@ -156,7 +179,7 @@ function HomePage() {
           <li>
             <span className="step-number">03</span>
             <h3>Подтвердите запись</h3>
-            <p>Оставьте нужный контекст и завершите договорённость о звонке.</p>
+            <p>Подтвердите выбранное время и завершите договорённость о звонке.</p>
           </li>
         </ol>
       </section>
@@ -164,18 +187,313 @@ function HomePage() {
   );
 }
 
-function BookingPlaceholder() {
+type LoadMeetingTypes = () => Promise<MeetingType[]>;
+
+async function loadMeetingTypesFromApi() {
+  const response = await meetingTypesList();
+  if (response.error || !response.data) throw new Error("Meeting types request failed");
+  return response.data.meetingTypes;
+}
+
+async function createMeetingTypeFromApi(input: {
+  name: string;
+  description: string;
+  durationMinutes: number;
+}) {
+  const response = await meetingTypesCreate({ body: input });
+  if (response.error || !response.data) throw new Error("Meeting type creation failed");
+  return response.data.meetingType;
+}
+
+type LoadAvailability = (meetingTypeId: string, date: string) => Promise<AvailableStart[]>;
+type CreateBooking = (input: {
+  meetingTypeId: string;
+  startsAt: string;
+  guestName: string;
+}) => Promise<Booking>;
+
+async function loadAvailabilityFromApi(meetingTypeId: string, date: string) {
+  const response = await meetingTypesAvailability({
+    path: { id: meetingTypeId },
+    query: { from: date, to: date },
+  });
+  if (response.error || !response.data) throw new Error("Availability request failed");
+  return response.data.slots;
+}
+
+async function createBookingFromApi(input: {
+  meetingTypeId: string;
+  startsAt: string;
+  guestName: string;
+}) {
+  const response = await bookingsCreate({ body: input });
+  if (response.error || !response.data) {
+    const error = new Error(response.error?.message ?? "Booking failed") as Error & {
+      code?: string;
+    };
+    error.code = response.error?.code;
+    throw error;
+  }
+  return response.data.booking;
+}
+
+type UpcomingBooking = Booking & { meetingTypeName: string };
+type LoadUpcomingBookings = () => Promise<UpcomingBooking[]>;
+
+async function loadUpcomingBookingsFromApi() {
+  const [bookingsResponse, meetingTypesResponse] = await Promise.all([
+    bookingsUpcoming(),
+    meetingTypesList(),
+  ]);
+  if (
+    bookingsResponse.error ||
+    !bookingsResponse.data ||
+    meetingTypesResponse.error ||
+    !meetingTypesResponse.data
+  ) {
+    throw new Error("Upcoming bookings request failed");
+  }
+  const names = new Map(meetingTypesResponse.data.meetingTypes.map((type) => [type.id, type.name]));
+  return bookingsResponse.data.bookings.map((booking) => ({
+    ...booking,
+    meetingTypeName: names.get(booking.meetingTypeId) ?? "Неизвестный тип встречи",
+  }));
+}
+
+function moscowDate() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Moscow",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function addDate(date: string, days: number) {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function formatDay(date: string) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "UTC",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })
+    .format(new Date(`${date}T00:00:00.000Z`))
+    .replace(" г.", "");
+}
+
+function formatTime(timestamp: string) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Moscow",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+function BookingPage({
+  loadMeetingTypes = loadMeetingTypesFromApi,
+  loadAvailability = loadAvailabilityFromApi,
+  createBooking = createBookingFromApi,
+}: {
+  loadMeetingTypes?: LoadMeetingTypes;
+  loadAvailability?: LoadAvailability;
+  createBooking?: CreateBooking;
+}) {
+  const [meetingTypes, setMeetingTypes] = useState<MeetingType[] | null>(null);
+  const [selectedMeetingType, setSelectedMeetingType] = useState<MeetingType | null>(null);
+  const [selectedDate, setSelectedDate] = useState(moscowDate);
+  const [selectedStart, setSelectedStart] = useState<string | null>(null);
+  const [availableStarts, setAvailableStarts] = useState<AvailableStart[] | null>(null);
+  const [error, setError] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void loadMeetingTypes()
+      .then((types) => {
+        if (active) setMeetingTypes(types);
+      })
+      .catch(() => {
+        if (active) setError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadMeetingTypes]);
+
+  useEffect(() => {
+    if (!selectedMeetingType) return;
+    let active = true;
+    setAvailableStarts(null);
+    setSelectedStart(null);
+    void loadAvailability(selectedMeetingType.id, selectedDate)
+      .then((nextSlots) => {
+        if (active) setAvailableStarts(nextSlots);
+      })
+      .catch(() => {
+        if (active) setAvailableStarts([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadAvailability, selectedDate, selectedMeetingType]);
+
+  const dates = Array.from({ length: 14 }, (_, index) => addDate(moscowDate(), index));
+
+  async function submitBooking(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedMeetingType || !selectedStart || !guestName.trim() || submitting) return;
+    setSubmitting(true);
+    setBookingError(null);
+    try {
+      setBooking(
+        await createBooking({
+          meetingTypeId: selectedMeetingType.id,
+          startsAt: selectedStart,
+          guestName,
+        }),
+      );
+    } catch (caught) {
+      const failure = caught as Error & { code?: string };
+      if (failure.code === "SLOT_UNAVAILABLE") {
+        setSelectedStart(null);
+        setBookingError(failure.message);
+        try {
+          setAvailableStarts(await loadAvailability(selectedMeetingType.id, selectedDate));
+        } catch {
+          setAvailableStarts([]);
+        }
+      } else {
+        setBookingError(failure.message || "Не удалось подтвердить запись.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
-    <main className="placeholder-page" aria-labelledby="placeholder-title">
-      <div className="placeholder-icon" aria-hidden="true">
-        <ArrowIcon />
-      </div>
+    <main className="booking-page" aria-labelledby="booking-title">
       <p className="eyebrow">Страница записи</p>
-      <h1 id="placeholder-title">Запись на звонок скоро будет доступна</h1>
-      <p>
-        Мы готовим страницу записи, где можно будет выбрать формат встречи и удобное время.
-        Вернитесь немного позже.
-      </p>
+      <Title id="booking-title" order={1}>
+        Выберите формат встречи
+      </Title>
+      <Text className="booking-intro">Найдите подходящий вариант разговора, чтобы продолжить.</Text>
+      {error ? (
+        <Alert color="red" title="Не удалось загрузить типы встреч">
+          Попробуйте обновить страницу.
+        </Alert>
+      ) : meetingTypes === null ? (
+        <Text className="status-text" role="status">
+          Загрузка типов встреч...
+        </Text>
+      ) : meetingTypes.length === 0 ? (
+        <Text className="status-text" role="status">
+          Пока нет доступных типов встреч
+        </Text>
+      ) : (
+        <Stack className="meeting-type-list" gap="md">
+          {meetingTypes.map((meetingType) => (
+            <Card
+              key={meetingType.id}
+              className={`meeting-type-card${selectedMeetingType?.id === meetingType.id ? " selected" : ""}`}
+              withBorder
+              component="button"
+              type="button"
+              data-meeting-type-id={meetingType.id}
+              onClick={() => setSelectedMeetingType(meetingType)}
+              aria-pressed={selectedMeetingType?.id === meetingType.id}
+            >
+              <Group justify="space-between" align="flex-start" wrap="nowrap">
+                <div>
+                  <Title order={2}>{meetingType.name}</Title>
+                  <Text>{meetingType.description}</Text>
+                </div>
+                <Text className="duration">{meetingType.durationMinutes} минут</Text>
+              </Group>
+            </Card>
+          ))}
+        </Stack>
+      )}
+      {selectedMeetingType && (
+        <section className="availability-panel" aria-labelledby="availability-title">
+          <Title id="availability-title" order={2}>
+            Выберите день и время
+          </Title>
+          <div className="date-list" aria-label="Дни доступности">
+            {dates.map((date) => (
+              <button
+                className={date === selectedDate ? "date-button selected" : "date-button"}
+                key={date}
+                type="button"
+                aria-pressed={date === selectedDate}
+                onClick={() => setSelectedDate(date)}
+              >
+                {formatDay(date)}
+              </button>
+            ))}
+          </div>
+          {availableStarts === null ? (
+            <Text className="status-text" role="status">
+              Загрузка доступного времени...
+            </Text>
+          ) : availableStarts.length === 0 ? (
+            <Text className="status-text" role="status">
+              На этот день нет доступного времени
+            </Text>
+          ) : (
+            <div className="slot-list" aria-label="Доступное время">
+              {availableStarts.map((availableStart) => (
+                <button
+                  className={
+                    availableStart.startsAt === selectedStart
+                      ? "slot-button selected"
+                      : "slot-button"
+                  }
+                  key={availableStart.startsAt}
+                  type="button"
+                  data-start={availableStart.startsAt}
+                  aria-pressed={availableStart.startsAt === selectedStart}
+                  onClick={() => setSelectedStart(availableStart.startsAt)}
+                >
+                  {formatTime(availableStart.startsAt)}
+                </button>
+              ))}
+            </div>
+          )}
+          <form className="booking-confirmation" onSubmit={submitBooking}>
+            {bookingError && <Alert color="red">{bookingError}</Alert>}
+            {booking ? (
+              <Alert color="green" title="Запись подтверждена">
+                До встречи, {booking.guestName}.
+              </Alert>
+            ) : (
+              <>
+                <TextInput
+                  label="Ваше имя"
+                  name="guestName"
+                  value={guestName}
+                  onChange={(event) => setGuestName(event.currentTarget.value)}
+                  required
+                />
+                <Button
+                  type="submit"
+                  loading={submitting}
+                  disabled={!selectedStart || !guestName.trim()}
+                >
+                  Подтвердить запись
+                </Button>
+              </>
+            )}
+          </form>
+        </section>
+      )}
       <AppLink className="secondary-button" href="/">
         <ArrowIcon direction="left" />
         Вернуться на главную
@@ -184,22 +502,211 @@ function BookingPlaceholder() {
   );
 }
 
-export function App() {
+type CreateMeetingType = (input: {
+  name: string;
+  description: string;
+  durationMinutes: number;
+}) => Promise<MeetingType>;
+
+function OwnerPage({
+  createMeetingType = createMeetingTypeFromApi,
+}: {
+  createMeetingType?: CreateMeetingType;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [duration, setDuration] = useState<number | string>(30);
+  const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<MeetingType | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmedName = name.trim();
+    const trimmedDescription = description.trim();
+    if (!trimmedName || !trimmedDescription) {
+      return setError(
+        [!trimmedName && "Введите название", !trimmedDescription && "Введите описание"]
+          .filter(Boolean)
+          .join(". "),
+      );
+    }
+    if (typeof duration !== "number" || !Number.isInteger(duration) || duration <= 0) {
+      return setError("Укажите положительную целую длительность");
+    }
+
+    setError(null);
+    setSaving(true);
+    try {
+      setCreated(
+        await createMeetingType({
+          name: trimmedName,
+          description: trimmedDescription,
+          durationMinutes: duration,
+        }),
+      );
+    } catch {
+      setError("Не удалось создать тип встречи. Попробуйте ещё раз.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <main className="owner-page" aria-labelledby="owner-title">
+      <p className="eyebrow">Владелец календаря</p>
+      <Title id="owner-title" order={1}>
+        Новый тип встречи
+      </Title>
+      <Text className="booking-intro">Добавьте формат звонка, который будет виден гостям.</Text>
+      <Card className="owner-card" withBorder>
+        <form onSubmit={handleSubmit}>
+          <Stack gap="lg">
+            {error && <Alert color="red">{error}</Alert>}
+            {created && (
+              <Alert color="green" title="Тип встречи создан">
+                {created.name} добавлен в каталог.
+              </Alert>
+            )}
+            <TextInput
+              label="Название"
+              name="name"
+              value={name}
+              onChange={(event) => setName(event.currentTarget.value)}
+            />
+            <Textarea
+              label="Описание"
+              name="description"
+              value={description}
+              onChange={(event) => setDescription(event.currentTarget.value)}
+            />
+            <NumberInput
+              label="Длительность, минут"
+              name="durationMinutes"
+              min={1}
+              value={duration}
+              onChange={setDuration}
+            />
+            <Button type="submit" loading={saving}>
+              Создать тип встречи
+            </Button>
+          </Stack>
+        </form>
+      </Card>
+    </main>
+  );
+}
+
+function formatDateTimeDate(timestamp: string) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Moscow",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(timestamp));
+}
+
+function OwnerBookingsPage({
+  loadUpcomingBookings = loadUpcomingBookingsFromApi,
+}: {
+  loadUpcomingBookings?: LoadUpcomingBookings;
+}) {
+  const [bookings, setBookings] = useState<UpcomingBooking[] | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void loadUpcomingBookings()
+      .then((nextBookings) => {
+        if (active) setBookings(nextBookings);
+      })
+      .catch(() => {
+        if (active) setError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadUpcomingBookings]);
+
+  return (
+    <main className="owner-page" aria-labelledby="owner-bookings-title">
+      <p className="eyebrow">Владелец календаря</p>
+      <Title id="owner-bookings-title" order={1}>
+        Предстоящие записи
+      </Title>
+      <Text className="booking-intro">Все подтверждённые звонки, которые ещё впереди.</Text>
+      {error ? (
+        <Alert color="red" title="Не удалось загрузить записи">
+          Попробуйте обновить страницу.
+        </Alert>
+      ) : bookings === null ? (
+        <Text className="status-text" role="status">
+          Загрузка предстоящих записей...
+        </Text>
+      ) : bookings.length === 0 ? (
+        <Text className="status-text" role="status">
+          Предстоящих записей пока нет
+        </Text>
+      ) : (
+        <Stack className="upcoming-booking-list" gap="md">
+          {bookings.map((booking) => (
+            <Card className="upcoming-booking-card" key={booking.id} withBorder>
+              <Group justify="space-between" align="flex-start" wrap="wrap">
+                <div>
+                  <Text className="booking-type">{booking.meetingTypeName}</Text>
+                  <Title order={2}>{booking.guestName}</Title>
+                </div>
+                <Text className="booking-date">{formatDateTimeDate(booking.startsAt)}</Text>
+              </Group>
+              <Text className="booking-time">
+                {formatTime(booking.startsAt)}–{formatTime(booking.endsAt)}
+              </Text>
+            </Card>
+          ))}
+        </Stack>
+      )}
+    </main>
+  );
+}
+
+export function App({
+  loadMeetingTypes,
+  createMeetingType,
+  loadAvailability,
+  createBooking,
+  loadUpcomingBookings,
+}: {
+  loadMeetingTypes?: LoadMeetingTypes;
+  createMeetingType?: CreateMeetingType;
+  loadAvailability?: LoadAvailability;
+  createBooking?: CreateBooking;
+  loadUpcomingBookings?: LoadUpcomingBookings;
+} = {}) {
   const pathname = usePathname();
   return (
-    <div className="app-shell">
-      <Header />
-      {pathname === bookingPath ? (
-        <BookingPlaceholder />
-      ) : (
-        <main>
-          <HomePage />
-        </main>
-      )}
-      <footer className="site-footer">
-        <span>Календарь звонков</span>
-        <span>Разговоры, которые удобно планировать</span>
-      </footer>
-    </div>
+    <MantineProvider defaultColorScheme="dark">
+      <div className="app-shell">
+        <Header />
+        {pathname === "/owner" ? (
+          <OwnerPage createMeetingType={createMeetingType} />
+        ) : pathname === "/owner/bookings" ? (
+          <OwnerBookingsPage loadUpcomingBookings={loadUpcomingBookings} />
+        ) : pathname === bookingPath ? (
+          <BookingPage
+            loadMeetingTypes={loadMeetingTypes}
+            loadAvailability={loadAvailability}
+            createBooking={createBooking}
+          />
+        ) : (
+          <main>
+            <HomePage />
+          </main>
+        )}
+        <footer className="site-footer">
+          <span>Календарь звонков</span>
+          <span>Разговоры, которые удобно планировать</span>
+        </footer>
+      </div>
+    </MantineProvider>
   );
 }

@@ -4,5 +4,8 @@ dist/
 .vitest/
 *.tsbuildinfo
 .mise/
+test-results/
+playwright-report/
+output/
 contracts/generated/
 packages/api-client/src/generated/

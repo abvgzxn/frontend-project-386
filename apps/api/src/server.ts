@@ -1,6 +1,7 @@
 import { buildApp } from "./app.js";
 
-const app = buildApp();
+const configuredNow = process.env.CALL_CALENDAR_NOW;
+const app = buildApp(configuredNow ? { now: () => new Date(configuredNow) } : {});
 const port = Number(process.env.PORT ?? 3000);
 
 try {
