@@ -57,5 +57,41 @@ export function buildApp(options: AppOptions = {}) {
     async () => ({ meetingTypes: meetingTypeRepository.list() }),
   );
 
+  app.post<{ Body: unknown }>(
+    "/api/meeting-types",
+    {
+      schema: {
+        response: {
+          201: {
+            type: "object",
+            properties: {
+              meetingType: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  name: { type: "string" },
+                  description: { type: "string" },
+                  durationMinutes: { type: "integer", minimum: 1 },
+                },
+                required: ["id", "name", "description", "durationMinutes"],
+              },
+            },
+            required: ["meetingType"],
+          },
+          400: {
+            type: "object",
+            properties: { code: { type: "string" }, message: { type: "string" } },
+            required: ["code", "message"],
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = meetingTypeRepository.create(request.body);
+      if ("error" in result) return reply.code(400).send(result.error);
+      return reply.code(201).send(result);
+    },
+  );
+
   return app;
 }
