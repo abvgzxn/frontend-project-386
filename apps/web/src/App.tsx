@@ -18,7 +18,7 @@ import {
   bookingsUpcoming,
   meetingTypesCreate,
   meetingTypesList,
-  type AvailabilitySlot,
+  type AvailableStart,
   type Booking,
   type MeetingType,
 } from "@call-calendar/api-client";
@@ -205,7 +205,7 @@ async function createMeetingTypeFromApi(input: {
   return response.data.meetingType;
 }
 
-type LoadAvailability = (meetingTypeId: string, date: string) => Promise<AvailabilitySlot[]>;
+type LoadAvailability = (meetingTypeId: string, date: string) => Promise<AvailableStart[]>;
 type CreateBooking = (input: {
   meetingTypeId: string;
   startsAt: string;
@@ -306,8 +306,8 @@ function BookingPage({
   const [meetingTypes, setMeetingTypes] = useState<MeetingType[] | null>(null);
   const [selectedMeetingType, setSelectedMeetingType] = useState<MeetingType | null>(null);
   const [selectedDate, setSelectedDate] = useState(moscowDate);
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null);
+  const [selectedStart, setSelectedStart] = useState<string | null>(null);
+  const [availableStarts, setAvailableStarts] = useState<AvailableStart[] | null>(null);
   const [error, setError] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [bookingError, setBookingError] = useState<string | null>(null);
@@ -331,14 +331,14 @@ function BookingPage({
   useEffect(() => {
     if (!selectedMeetingType) return;
     let active = true;
-    setSlots(null);
-    setSelectedSlot(null);
+    setAvailableStarts(null);
+    setSelectedStart(null);
     void loadAvailability(selectedMeetingType.id, selectedDate)
       .then((nextSlots) => {
-        if (active) setSlots(nextSlots);
+        if (active) setAvailableStarts(nextSlots);
       })
       .catch(() => {
-        if (active) setSlots([]);
+        if (active) setAvailableStarts([]);
       });
     return () => {
       active = false;
@@ -349,26 +349,26 @@ function BookingPage({
 
   async function submitBooking(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedMeetingType || !selectedSlot || !guestName.trim() || submitting) return;
+    if (!selectedMeetingType || !selectedStart || !guestName.trim() || submitting) return;
     setSubmitting(true);
     setBookingError(null);
     try {
       setBooking(
         await createBooking({
           meetingTypeId: selectedMeetingType.id,
-          startsAt: selectedSlot,
+          startsAt: selectedStart,
           guestName,
         }),
       );
     } catch (caught) {
       const failure = caught as Error & { code?: string };
       if (failure.code === "SLOT_UNAVAILABLE") {
-        setSelectedSlot(null);
+        setSelectedStart(null);
         setBookingError(failure.message);
         try {
-          setSlots(await loadAvailability(selectedMeetingType.id, selectedDate));
+          setAvailableStarts(await loadAvailability(selectedMeetingType.id, selectedDate));
         } catch {
-          setSlots([]);
+          setAvailableStarts([]);
         }
       } else {
         setBookingError(failure.message || "Не удалось подтвердить запись.");
@@ -435,24 +435,26 @@ function BookingPage({
               </button>
             ))}
           </div>
-          {slots === null ? (
+          {availableStarts === null ? (
             <Text role="status">Загрузка доступного времени...</Text>
-          ) : slots.length === 0 ? (
+          ) : availableStarts.length === 0 ? (
             <Text role="status">На этот день нет доступного времени</Text>
           ) : (
             <div className="slot-list" aria-label="Доступное время">
-              {slots.map((slot) => (
+              {availableStarts.map((availableStart) => (
                 <button
                   className={
-                    slot.startsAt === selectedSlot ? "slot-button selected" : "slot-button"
+                    availableStart.startsAt === selectedStart
+                      ? "slot-button selected"
+                      : "slot-button"
                   }
-                  key={slot.startsAt}
+                  key={availableStart.startsAt}
                   type="button"
-                  data-start={slot.startsAt}
-                  aria-pressed={slot.startsAt === selectedSlot}
-                  onClick={() => setSelectedSlot(slot.startsAt)}
+                  data-start={availableStart.startsAt}
+                  aria-pressed={availableStart.startsAt === selectedStart}
+                  onClick={() => setSelectedStart(availableStart.startsAt)}
                 >
-                  {formatTime(slot.startsAt)}
+                  {formatTime(availableStart.startsAt)}
                 </button>
               ))}
             </div>
@@ -475,7 +477,7 @@ function BookingPage({
                 <Button
                   type="submit"
                   loading={submitting}
-                  disabled={!selectedSlot || !guestName.trim()}
+                  disabled={!selectedStart || !guestName.trim()}
                 >
                   Подтвердить запись
                 </Button>

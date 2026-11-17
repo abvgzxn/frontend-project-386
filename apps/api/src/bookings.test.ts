@@ -60,6 +60,12 @@ describe("POST /api/bookings", () => {
       "MEETING_TYPE_NOT_FOUND",
     ],
     [
+      { meetingTypeId: 42, startsAt: "2026-06-08T07:00:00Z", guestName: "Анна" },
+      400,
+      "INVALID_MEETING_TYPE_ID",
+    ],
+    [{ startsAt: "2026-06-08T07:00:00Z", guestName: "Анна" }, 400, "INVALID_MEETING_TYPE_ID"],
+    [
       { meetingTypeId: "mt_short", startsAt: "2026-06-08T07:00:00+03:00", guestName: "Анна" },
       400,
       "INVALID_STARTS_AT",
@@ -89,6 +95,22 @@ describe("POST /api/bookings", () => {
     expect(response.status).toBe(status);
     expect(await response.json()).toEqual({ code, message: expect.any(String) });
   });
+
+  it.each(["2026-06-08T14:30:00.001Z", "2026-06-08T14:30:00.100Z"])(
+    "rejects an end instant fractionally after the 18:00 Moscow boundary: %s",
+    async (startsAt) => {
+      const response = await post(await server(), {
+        meetingTypeId: "mt_long",
+        startsAt,
+        guestName: "Анна",
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        code: "NON_WORKING_TIME",
+        message: expect.any(String),
+      });
+    },
+  );
 
   it("rejects partial overlap across meeting types while allowing exact adjacency", async () => {
     const url = await server();

@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App.js";
-import type { AvailabilitySlot, Booking, MeetingType } from "@call-calendar/api-client";
+import type { AvailableStart, Booking, MeetingType } from "@call-calendar/api-client";
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -26,7 +26,7 @@ async function renderApp(
   pathname = "/",
   loadMeetingTypes?: () => Promise<MeetingType[]>,
   createMeetingType?: () => Promise<MeetingType>,
-  loadAvailability?: (meetingTypeId: string, date: string) => Promise<AvailabilitySlot[]>,
+  loadAvailability?: (meetingTypeId: string, date: string) => Promise<AvailableStart[]>,
   createBooking?: (input: {
     meetingTypeId: string;
     startsAt: string;

@@ -41,6 +41,7 @@ function waitFor(url, child) {
 
 const apiPort = await freePort();
 const webPort = await freePort();
+const controlledNow = "2026-06-05T08:00:00.000Z";
 const children = [];
 const command = process.platform === "win32" ? "npm.cmd" : "npm";
 
@@ -55,7 +56,10 @@ function start(args, env) {
   return child;
 }
 
-const api = start(["run", "dev", "--workspace", "@call-calendar/api"], { PORT: String(apiPort) });
+const api = start(["run", "dev", "--workspace", "@call-calendar/api"], {
+  PORT: String(apiPort),
+  CALL_CALENDAR_NOW: controlledNow,
+});
 const web = start(
   [
     "run",
@@ -103,7 +107,11 @@ try {
   await waitFor(`http://127.0.0.1:${webPort}`, web);
   const result = spawn(command, ["exec", "playwright", "test"], {
     cwd: root,
-    env: { ...process.env, PLAYWRIGHT_BASE_URL: `http://127.0.0.1:${webPort}` },
+    env: {
+      ...process.env,
+      PLAYWRIGHT_BASE_URL: `http://127.0.0.1:${webPort}`,
+      E2E_CONTROLLED_NOW: controlledNow,
+    },
     stdio: "inherit",
   });
   result.once("exit", async (code, signal) => {

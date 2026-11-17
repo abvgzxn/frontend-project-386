@@ -1,4 +1,5 @@
 import type { MeetingType } from "./meeting-types.js";
+import { addDays, localTimeToUtc, moscowDate, moscowParts } from "./scheduling.js";
 
 export type Booking = {
   id: string;
@@ -12,6 +13,7 @@ export type Booking = {
 export type BookingError = {
   code:
     | "INVALID_GUEST_NAME"
+    | "INVALID_MEETING_TYPE_ID"
     | "INVALID_STARTS_AT"
     | "START_NOT_IN_FUTURE"
     | "START_OUTSIDE_WINDOW"
@@ -21,55 +23,7 @@ export type BookingError = {
   message: string;
 };
 
-const zone = "Europe/Moscow";
 const timestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
-
-function parts(date: Date) {
-  const values = Object.fromEntries(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: zone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    })
-      .formatToParts(date)
-      .map(({ type, value }) => [type, value]),
-  );
-  return values;
-}
-
-function moscowDate(date: Date) {
-  const value = parts(date);
-  return `${value.year}-${value.month}-${value.day}`;
-}
-
-function addDays(date: string, days: number) {
-  const value = new Date(`${date}T00:00:00.000Z`);
-  value.setUTCDate(value.getUTCDate() + days);
-  return value.toISOString().slice(0, 10);
-}
-
-function localToUtc(date: string, hour: number, minute: number) {
-  const local = Date.UTC(
-    Number(date.slice(0, 4)),
-    Number(date.slice(5, 7)) - 1,
-    Number(date.slice(8)),
-    hour,
-    minute,
-  );
-  const value = parts(new Date(local));
-  const rendered = Date.UTC(
-    Number(value.year),
-    Number(value.month) - 1,
-    Number(value.day),
-    Number(value.hour),
-    Number(value.minute),
-  );
-  return new Date(local - (rendered - local));
-}
 
 function error(code: BookingError["code"], message: string): { error: BookingError } {
   return { error: { code, message } };
@@ -102,10 +56,10 @@ export function createBookingRepository(
     create(input: unknown): { booking: Booking } | { error: BookingError } {
       const body = typeof input === "object" && input !== null ? input : {};
       const { meetingTypeId, startsAt, guestName } = body as Record<string, unknown>;
-      const meetingTypeIdValue = typeof meetingTypeId === "string" ? meetingTypeId : undefined;
-      const meetingType = meetingTypeIdValue ? meetingTypeById(meetingTypeIdValue) : undefined;
-      if (!meetingTypeIdValue || !meetingType)
-        return error("MEETING_TYPE_NOT_FOUND", "Тип встречи не найден.");
+      if (typeof meetingTypeId !== "string")
+        return error("INVALID_MEETING_TYPE_ID", "Укажите корректный тип встречи.");
+      const meetingType = meetingTypeById(meetingTypeId);
+      if (!meetingType) return error("MEETING_TYPE_NOT_FOUND", "Тип встречи не найден.");
       if (typeof guestName !== "string" || guestName.trim() === "") {
         return error("INVALID_GUEST_NAME", "Введите имя гостя.");
       }
@@ -121,7 +75,7 @@ export function createBookingRepository(
       if (start <= current)
         return error("START_NOT_IN_FUTURE", "Время начала должно быть в будущем.");
 
-      const local = parts(start);
+      const local = moscowParts(start);
       const date = `${local.year}-${local.month}-${local.day}`;
       const today = moscowDate(current);
       if (date < today || date > addDays(today, 13)) {
@@ -137,12 +91,8 @@ export function createBookingRepository(
         return error("NON_WORKING_TIME", "Выберите рабочее время на сетке в 30 минут.");
       }
       const end = new Date(start.getTime() + meetingType.durationMinutes * 60_000);
-      const endLocal = parts(end);
-      if (
-        `${endLocal.year}-${endLocal.month}-${endLocal.day}` !== date ||
-        Number(endLocal.hour) > 18 ||
-        (Number(endLocal.hour) === 18 && Number(endLocal.minute) > 0)
-      ) {
+      const boundary = localTimeToUtc(date, 18, 0);
+      if (end > boundary) {
         return error("NON_WORKING_TIME", "Встреча должна полностью помещаться в рабочие часы.");
       }
 
@@ -161,7 +111,7 @@ export function createBookingRepository(
       }
       const booking = {
         id: `booking_${nextId++}`,
-        meetingTypeId: meetingTypeIdValue,
+        meetingTypeId,
         guestName: guestName.trim(),
         startsAt: start.toISOString(),
         endsAt: end.toISOString(),
@@ -173,13 +123,13 @@ export function createBookingRepository(
   };
 }
 
-export function normalizeAvailabilitySlot(
+export function normalizeAvailableStart(
   date: string,
   hour: number,
   minute: number,
   durationMinutes: number,
 ) {
-  const start = localToUtc(date, hour, minute);
+  const start = localTimeToUtc(date, hour, minute);
   const end = new Date(start.getTime() + durationMinutes * 60_000);
   return { startsAt: start.toISOString(), endsAt: end.toISOString() };
 }
