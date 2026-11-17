@@ -1,0 +1,11 @@
+.git
+.github
+.agents
+node_modules
+dist
+output
+test-results
+playwright-report
+contracts/generated
+packages/api-client/src/generated
+*.log

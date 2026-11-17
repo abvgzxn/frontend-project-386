@@ -25,3 +25,16 @@ jobs:
       - run: mise run install
       - run: npx playwright install --with-deps chromium
       - run: mise run check
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: docker build --tag call-calendar:ci .
+      - run: docker run --detach --name call-calendar-ci --publish 18080:3000 call-calendar:ci
+      - run: node scripts/docker-smoke.mjs http://127.0.0.1:18080
+      - if: always()
+        run: docker rm --force call-calendar-ci
