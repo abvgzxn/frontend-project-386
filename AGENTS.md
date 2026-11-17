@@ -20,6 +20,8 @@
 - Run the complete local gate with `mise run check`; its order is generate, lint, typecheck, Vitest, then both builds.
 - `mise run lint` and `hk` checks are read-only; they must not auto-fix files.
 - `mise run generate` and `mise run check` assume dependencies are already installed; CI runs `mise run install` explicitly first.
+- Build and smoke-test the production container with `docker build -t call-calendar .`, `docker run --rm -p 3000:3000 call-calendar`, and `npm run test:docker-smoke -- http://127.0.0.1:3000`.
+- The production container runs one Fastify process on `0.0.0.0:$PORT`; it serves the built frontend and API from the same origin. Runtime data remains in memory.
 
 ## Testing And Workflow
 

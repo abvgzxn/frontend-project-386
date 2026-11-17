@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import fastifyStatic from "@fastify/static";
 import { getAvailability } from "./availability.js";
 import { createBookingRepository, type Booking } from "./bookings.js";
 import { createMeetingTypeRepository, type MeetingType } from "./meeting-types.js";
@@ -9,10 +10,15 @@ type AppOptions = {
   meetingTypes?: MeetingType[];
   now?: () => Date;
   bookings?: Booking[];
+  staticRoot?: string;
 };
 
 export function buildApp(options: AppOptions = {}) {
   const app = Fastify({ logger: false });
+  if (options.staticRoot) {
+    app.register(fastifyStatic, { root: options.staticRoot, index: false });
+    app.get("/", (_request, reply) => reply.type("text/html").sendFile("index.html"));
+  }
   const meetingTypeRepository = createMeetingTypeRepository(options.meetingTypes);
   const now = options.now ?? (() => new Date());
   const bookingRepository = createBookingRepository(
@@ -200,6 +206,16 @@ export function buildApp(options: AppOptions = {}) {
     },
     async () => ({ bookings: bookingRepository.upcoming() }),
   );
+
+  app.setNotFoundHandler((request, reply) => {
+    if (request.url === "/api" || request.url.startsWith("/api/")) {
+      return reply.code(404).send({ code: "NOT_FOUND", message: "Маршрут API не найден." });
+    }
+    if (options.staticRoot) {
+      return reply.type("text/html").sendFile("index.html");
+    }
+    return reply.code(404).send({ code: "NOT_FOUND", message: "Маршрут не найден." });
+  });
 
   return app;
 }
