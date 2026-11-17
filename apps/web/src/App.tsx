@@ -14,9 +14,11 @@ import {
 } from "@mantine/core";
 import {
   meetingTypesAvailability,
+  bookingsCreate,
   meetingTypesCreate,
   meetingTypesList,
   type AvailabilitySlot,
+  type Booking,
   type MeetingType,
 } from "@call-calendar/api-client";
 import "./App.css";
@@ -203,6 +205,11 @@ async function createMeetingTypeFromApi(input: {
 }
 
 type LoadAvailability = (meetingTypeId: string, date: string) => Promise<AvailabilitySlot[]>;
+type CreateBooking = (input: {
+  meetingTypeId: string;
+  startsAt: string;
+  guestName: string;
+}) => Promise<Booking>;
 
 async function loadAvailabilityFromApi(meetingTypeId: string, date: string) {
   const response = await meetingTypesAvailability({
@@ -211,6 +218,22 @@ async function loadAvailabilityFromApi(meetingTypeId: string, date: string) {
   });
   if (response.error || !response.data) throw new Error("Availability request failed");
   return response.data.slots;
+}
+
+async function createBookingFromApi(input: {
+  meetingTypeId: string;
+  startsAt: string;
+  guestName: string;
+}) {
+  const response = await bookingsCreate({ body: input });
+  if (response.error || !response.data) {
+    const error = new Error(response.error?.message ?? "Booking failed") as Error & {
+      code?: string;
+    };
+    error.code = response.error?.code;
+    throw error;
+  }
+  return response.data.booking;
 }
 
 function moscowDate() {
@@ -250,9 +273,11 @@ function formatTime(timestamp: string) {
 function BookingPage({
   loadMeetingTypes = loadMeetingTypesFromApi,
   loadAvailability = loadAvailabilityFromApi,
+  createBooking = createBookingFromApi,
 }: {
   loadMeetingTypes?: LoadMeetingTypes;
   loadAvailability?: LoadAvailability;
+  createBooking?: CreateBooking;
 }) {
   const [meetingTypes, setMeetingTypes] = useState<MeetingType[] | null>(null);
   const [selectedMeetingType, setSelectedMeetingType] = useState<MeetingType | null>(null);
@@ -260,6 +285,10 @@ function BookingPage({
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null);
   const [error, setError] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -293,6 +322,37 @@ function BookingPage({
   }, [loadAvailability, selectedDate, selectedMeetingType]);
 
   const dates = Array.from({ length: 14 }, (_, index) => addDate(moscowDate(), index));
+
+  async function submitBooking(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedMeetingType || !selectedSlot || !guestName.trim() || submitting) return;
+    setSubmitting(true);
+    setBookingError(null);
+    try {
+      setBooking(
+        await createBooking({
+          meetingTypeId: selectedMeetingType.id,
+          startsAt: selectedSlot,
+          guestName,
+        }),
+      );
+    } catch (caught) {
+      const failure = caught as Error & { code?: string };
+      if (failure.code === "SLOT_UNAVAILABLE") {
+        setSelectedSlot(null);
+        setBookingError(failure.message);
+        try {
+          setSlots(await loadAvailability(selectedMeetingType.id, selectedDate));
+        } catch {
+          setSlots([]);
+        }
+      } else {
+        setBookingError(failure.message || "Не удалось подтвердить запись.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <main className="booking-page" aria-labelledby="booking-title">
@@ -371,6 +431,31 @@ function BookingPage({
               ))}
             </div>
           )}
+          <form className="booking-confirmation" onSubmit={submitBooking}>
+            {bookingError && <Alert color="red">{bookingError}</Alert>}
+            {booking ? (
+              <Alert color="green" title="Запись подтверждена">
+                До встречи, {booking.guestName}.
+              </Alert>
+            ) : (
+              <>
+                <TextInput
+                  label="Ваше имя"
+                  name="guestName"
+                  value={guestName}
+                  onChange={(event) => setGuestName(event.currentTarget.value)}
+                  required
+                />
+                <Button
+                  type="submit"
+                  loading={submitting}
+                  disabled={!selectedSlot || !guestName.trim()}
+                >
+                  Подтвердить запись
+                </Button>
+              </>
+            )}
+          </form>
         </section>
       )}
       <AppLink className="secondary-button" href="/">
@@ -480,10 +565,12 @@ export function App({
   loadMeetingTypes,
   createMeetingType,
   loadAvailability,
+  createBooking,
 }: {
   loadMeetingTypes?: LoadMeetingTypes;
   createMeetingType?: CreateMeetingType;
   loadAvailability?: LoadAvailability;
+  createBooking?: CreateBooking;
 } = {}) {
   const pathname = usePathname();
   return (
@@ -493,7 +580,11 @@ export function App({
         {pathname === "/owner" ? (
           <OwnerPage createMeetingType={createMeetingType} />
         ) : pathname === bookingPath ? (
-          <BookingPage loadMeetingTypes={loadMeetingTypes} loadAvailability={loadAvailability} />
+          <BookingPage
+            loadMeetingTypes={loadMeetingTypes}
+            loadAvailability={loadAvailability}
+            createBooking={createBooking}
+          />
         ) : (
           <main>
             <HomePage />

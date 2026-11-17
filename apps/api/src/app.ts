@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import { getAvailability } from "./availability.js";
+import { createBookingRepository, type Booking } from "./bookings.js";
 import { createMeetingTypeRepository, type MeetingType } from "./meeting-types.js";
 
 export type { MeetingType } from "./meeting-types.js";
@@ -7,12 +8,18 @@ export type { MeetingType } from "./meeting-types.js";
 type AppOptions = {
   meetingTypes?: MeetingType[];
   now?: () => Date;
+  bookings?: Booking[];
 };
 
 export function buildApp(options: AppOptions = {}) {
   const app = Fastify({ logger: false });
   const meetingTypeRepository = createMeetingTypeRepository(options.meetingTypes);
   const now = options.now ?? (() => new Date());
+  const bookingRepository = createBookingRepository(
+    (id) => meetingTypeRepository.get(id),
+    now,
+    options.bookings,
+  );
 
   app.get(
     "/api/health",
@@ -137,6 +144,7 @@ export function buildApp(options: AppOptions = {}) {
         request.query.from,
         request.query.to,
         now(),
+        bookingRepository.list(),
       );
       if ("error" in result) {
         return reply
@@ -146,6 +154,27 @@ export function buildApp(options: AppOptions = {}) {
       return result;
     },
   );
+
+  app.post<{ Body: unknown }>("/api/bookings", async (request, reply) => {
+    const result = bookingRepository.create(request.body);
+    if ("error" in result) {
+      const status =
+        result.error.code === "MEETING_TYPE_NOT_FOUND"
+          ? 404
+          : result.error.code === "SLOT_UNAVAILABLE"
+            ? 409
+            : 400;
+      return reply.code(status).send(result.error);
+    }
+    return reply.code(201).send(result);
+  });
+
+  app.get("/api/bookings/upcoming", async () => ({
+    bookings: bookingRepository
+      .list()
+      .filter((booking) => new Date(booking.startsAt) > now())
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.endsAt.localeCompare(b.endsAt)),
+  }));
 
   return app;
 }
