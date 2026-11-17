@@ -1,6 +1,6 @@
 import type { MeetingType } from "./meeting-types.js";
 import type { Booking } from "./bookings.js";
-import { addDays, localTimeToUtc, moscowDate } from "./scheduling.js";
+import { addDays, bookingStartStepMinutes, localTimeToUtc, moscowDate } from "./scheduling.js";
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -51,7 +51,11 @@ export function getAvailability(
   for (let date = from; date <= to; date = addDays(date, 1)) {
     const weekday = new Date(`${date}T00:00:00.000Z`).getUTCDay();
     if (weekday === 0 || weekday === 6) continue;
-    for (let minutes = 9 * 60; minutes < 18 * 60; minutes += 30) {
+    for (
+      let minutes = 9 * 60;
+      minutes < 18 * 60;
+      minutes += bookingStartStepMinutes(meetingType.durationMinutes)
+    ) {
       const endMinutes = minutes + meetingType.durationMinutes;
       if (endMinutes > 18 * 60) continue;
       const start = localTimeToUtc(date, Math.floor(minutes / 60), minutes % 60);

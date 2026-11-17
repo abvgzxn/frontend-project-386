@@ -1,5 +1,9 @@
 const timeZone = "Europe/Moscow";
 
+export function bookingStartStepMinutes(durationMinutes: number) {
+  return durationMinutes > 30 ? 60 : 30;
+}
+
 export function moscowParts(date: Date) {
   const values = Object.fromEntries(
     new Intl.DateTimeFormat("en-US", {
