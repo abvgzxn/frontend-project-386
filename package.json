@@ -12,6 +12,7 @@
     "generate": "npm run generate --workspace @call-calendar/contracts && npm run generate --workspace @call-calendar/api-client",
     "dev": "npm run dev --workspace @call-calendar/web",
     "build": "npm run build --workspace @call-calendar/api && npm run build --workspace @call-calendar/web",
+    "test:e2e": "npm run generate && node scripts/run-e2e.mjs",
     "validate:release-please": "node scripts/validate-release-please.mjs",
     "lint": "npm run validate:release-please && oxlint . && oxfmt --check . && jactionlint --ignore duplicate-triggers .github/workflows/*.yml",
     "typecheck": "npm run typecheck --workspace @call-calendar/api && npm run typecheck --workspace @call-calendar/web",
@@ -19,6 +20,7 @@
     "check": "npm run generate && npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.1",
     "oxfmt": "0.79.0",
     "oxlint": "1.94.0",
     "typescript": "5.8.3"
