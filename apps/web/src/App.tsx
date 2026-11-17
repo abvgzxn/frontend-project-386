@@ -402,6 +402,7 @@ function BookingPage({
               withBorder
               component="button"
               type="button"
+              data-meeting-type-id={meetingType.id}
               onClick={() => setSelectedMeetingType(meetingType)}
               aria-pressed={selectedMeetingType?.id === meetingType.id}
             >
@@ -447,6 +448,7 @@ function BookingPage({
                   }
                   key={slot.startsAt}
                   type="button"
+                  data-start={slot.startsAt}
                   aria-pressed={slot.startsAt === selectedSlot}
                   onClick={() => setSelectedSlot(slot.startsAt)}
                 >
