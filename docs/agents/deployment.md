@@ -15,8 +15,9 @@ render`; do not disable TLS verification or add a certificate copied from a
 failed connection to the trust store. OAuth credentials are stored outside the
 repository.
 
-Railway is configured as a disabled fallback. Enable it only when Render is
-unavailable and Railway deployment is explicitly selected:
+Railway is configured as the active fallback because the Render MCP endpoint is
+currently not completing its TLS handshake. Use it only for the deployment
+service selected for this project:
 
 ```jsonc
 {
