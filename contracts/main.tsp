@@ -131,5 +131,6 @@ interface Bookings {
 
   @get
   @route("/bookings/upcoming")
+  @doc("Returns bookings whose start is strictly after the current UTC instant, sorted by start and end time.")
   upcoming(): BookingsResponse;
 }

@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App.js";
 import type { AvailabilitySlot, Booking, MeetingType } from "@call-calendar/api-client";
 
@@ -32,6 +32,7 @@ async function renderApp(
     startsAt: string;
     guestName: string;
   }) => Promise<Booking>,
+  loadUpcomingBookings?: () => Promise<(Booking & { meetingTypeName: string })[]>,
 ) {
   window.history.replaceState({}, "", pathname);
   container = document.createElement("div");
@@ -44,6 +45,7 @@ async function renderApp(
         createMeetingType={createMeetingType}
         loadAvailability={loadAvailability}
         createBooking={createBooking}
+        loadUpcomingBookings={loadUpcomingBookings}
       />,
     ),
   );
@@ -242,5 +244,46 @@ describe("owner meeting type form", () => {
 
     expect(container.textContent).toContain("Введите название");
     expect(container.textContent).toContain("Введите описание");
+  });
+});
+
+describe("owner upcoming bookings", () => {
+  it("shows loading, empty, error, and success states", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-05T08:00:00.000Z"));
+    let resolveBookings!: (bookings: (Booking & { meetingTypeName: string })[]) => void;
+    const pending = new Promise<(Booking & { meetingTypeName: string })[]>((resolve) => {
+      resolveBookings = resolve;
+    });
+    await renderApp("/owner/bookings", undefined, undefined, undefined, undefined, () => pending);
+    expect(container.textContent).toContain("Загрузка предстоящих записей...");
+    await act(async () => resolveBookings([]));
+    expect(container.textContent).toContain("Предстоящих записей пока нет");
+
+    await act(async () => root.unmount());
+    container.remove();
+    await renderApp("/owner/bookings", undefined, undefined, undefined, undefined, async () => {
+      throw new Error("network");
+    });
+    expect(container.textContent).toContain("Не удалось загрузить записи");
+
+    await act(async () => root.unmount());
+    container.remove();
+    await renderApp("/owner/bookings", undefined, undefined, undefined, undefined, async () => [
+      {
+        id: "booking_1",
+        meetingTypeId: "mt_intro",
+        meetingTypeName: "Знакомство",
+        guestName: "Анна",
+        startsAt: "2026-06-08T07:00:00.000Z",
+        endsAt: "2026-06-08T07:30:00.000Z",
+        createdAt: "2026-06-05T08:00:00.000Z",
+      },
+    ]);
+    expect(container.textContent).toContain("Знакомство");
+    expect(container.textContent).toContain("Анна");
+    expect(container.textContent).toContain("8 июня 2026 г.");
+    expect(container.textContent).toContain("10:00–10:30");
+    vi.useRealTimers();
   });
 });

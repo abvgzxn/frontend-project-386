@@ -165,3 +165,67 @@ describe("POST /api/bookings", () => {
     expect(body.slots.some((slot) => slot.startsAt === "2026-06-08T08:00:00.000Z")).toBe(true);
   });
 });
+
+describe("GET /api/bookings/upcoming", () => {
+  const apps: ReturnType<typeof buildApp>[] = [];
+
+  afterEach(async () => {
+    await Promise.all(apps.map((app) => app.close()));
+    apps.length = 0;
+  });
+
+  it("returns only future bookings, normalized and sorted by absolute timestamps", async () => {
+    const app = buildApp({
+      meetingTypes,
+      now: () => now,
+      bookings: [
+        {
+          id: "equal",
+          meetingTypeId: "mt_short",
+          guestName: "Ровно сейчас",
+          startsAt: "2026-06-05T08:00:00.000Z",
+          endsAt: "2026-06-05T08:30:00.000Z",
+          createdAt: "2026-06-04T08:00:00.000Z",
+        },
+        {
+          id: "later-end",
+          meetingTypeId: "mt_short",
+          guestName: "Позже заканчивается",
+          startsAt: "2026-06-05T10:00:00.1Z",
+          endsAt: "2026-06-05T10:30:00.1Z",
+          createdAt: "2026-06-04T08:00:00.000Z",
+        },
+        {
+          id: "first",
+          meetingTypeId: "mt_short",
+          guestName: "Первый",
+          startsAt: "2026-06-05T10:00:00Z",
+          endsAt: "2026-06-05T10:20:00Z",
+          createdAt: "2026-06-04T08:00:00.000Z",
+        },
+      ],
+    });
+    apps.push(app);
+    await app.listen({ host: "127.0.0.1", port: 0 });
+    const address = app.server.address();
+    if (!address || typeof address === "string") throw new Error("No TCP address");
+
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/bookings/upcoming`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      bookings: [
+        expect.objectContaining({
+          id: "first",
+          startsAt: "2026-06-05T10:00:00.000Z",
+          endsAt: "2026-06-05T10:20:00.000Z",
+        }),
+        expect.objectContaining({
+          id: "later-end",
+          startsAt: "2026-06-05T10:00:00.100Z",
+          endsAt: "2026-06-05T10:30:00.100Z",
+        }),
+      ],
+    });
+  });
+});

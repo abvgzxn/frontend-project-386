@@ -85,6 +85,20 @@ export function createBookingRepository(
 
   return {
     list: () => bookings,
+    upcoming: () =>
+      bookings
+        .filter((booking) => Date.parse(booking.startsAt) > now().getTime())
+        .map((booking) => ({
+          ...booking,
+          startsAt: new Date(booking.startsAt).toISOString(),
+          endsAt: new Date(booking.endsAt).toISOString(),
+          createdAt: new Date(booking.createdAt).toISOString(),
+        }))
+        .sort(
+          (a, b) =>
+            Date.parse(a.startsAt) - Date.parse(b.startsAt) ||
+            Date.parse(a.endsAt) - Date.parse(b.endsAt),
+        ),
     create(input: unknown): { booking: Booking } | { error: BookingError } {
       const body = typeof input === "object" && input !== null ? input : {};
       const { meetingTypeId, startsAt, guestName } = body as Record<string, unknown>;
