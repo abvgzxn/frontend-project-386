@@ -2,25 +2,26 @@
 
 ## #20 sensitivity experiment
 
-Rule under test: a booking must reject any interval whose end is after the
-exact `18:00:00.000` Europe/Moscow boundary, while preserving the accepted UTC
-timestamp rule (`Z` with no fraction or 1-3 fractional digits).
+Rule under test: a booking must reject any interval that partially overlaps an
+existing booking, including across different meeting types. A 60-minute
+booking at 10:00 and a 30-minute booking at 10:30 cannot both be created.
 
 Exact command used for the deliberate mutation:
 
 ```sh
-npm run test --workspace @call-calendar/api -- src/bookings.test.ts
+npm run test --workspace @call-calendar/api -- src/bookings.test.ts -t "partial overlap"
 ```
 
-Red result: the command failed because the temporary mutation kept the old
-hour/minute-only boundary check; `2026-06-08T14:30:00.001Z` was accepted even
-though its end was `18:00:00.001` in Moscow.
+Red result: after temporarily changing the overlap predicate from
+`start < existingEnd && end > existingStart` to `||`, the command failed
+because an adjacent booking was incorrectly rejected with `409` instead of
+`201`. The failure identifies the broken interval behavior rather than a
+frontend or transport failure.
 
-The mutation was restored to the strict boundary comparison. The same command
-then passed, including the fractional-boundary regression tests. Broken code
-was not retained.
+The predicate was restored to `start < existingEnd && end > existingStart`.
+The same command then passed, including the 60-minute/30-minute cross-type
+partial-overlap regression. Broken code was not retained.
 
 Comment-ready record: `#20 sensitivity: deliberately retained the exact
-command, red reason, and restored-green result above. The strict Moscow
-18:00:00.000 rule is now covered by regression tests; no broken mutation
-remains.`
+command, red reason, and restored-green result above. The strict half-open
+interval rule is now covered by regression tests; no broken mutation remains.`
