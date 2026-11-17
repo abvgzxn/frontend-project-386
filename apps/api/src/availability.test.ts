@@ -40,32 +40,45 @@ describe("GET /api/meeting-types/:id/availability", () => {
       from: "2026-06-05",
       to: "2026-06-08",
       slots: [
-        { startsAt: "2026-06-05T10:30:00.000Z", endsAt: "2026-06-05T12:00:00.000Z" },
         { startsAt: "2026-06-05T11:00:00.000Z", endsAt: "2026-06-05T12:30:00.000Z" },
-        { startsAt: "2026-06-05T11:30:00.000Z", endsAt: "2026-06-05T13:00:00.000Z" },
         { startsAt: "2026-06-05T12:00:00.000Z", endsAt: "2026-06-05T13:30:00.000Z" },
-        { startsAt: "2026-06-05T12:30:00.000Z", endsAt: "2026-06-05T14:00:00.000Z" },
         { startsAt: "2026-06-05T13:00:00.000Z", endsAt: "2026-06-05T14:30:00.000Z" },
-        { startsAt: "2026-06-05T13:30:00.000Z", endsAt: "2026-06-05T15:00:00.000Z" },
         { startsAt: "2026-06-08T06:00:00.000Z", endsAt: "2026-06-08T07:30:00.000Z" },
-        { startsAt: "2026-06-08T06:30:00.000Z", endsAt: "2026-06-08T08:00:00.000Z" },
         { startsAt: "2026-06-08T07:00:00.000Z", endsAt: "2026-06-08T08:30:00.000Z" },
-        { startsAt: "2026-06-08T07:30:00.000Z", endsAt: "2026-06-08T09:00:00.000Z" },
         { startsAt: "2026-06-08T08:00:00.000Z", endsAt: "2026-06-08T09:30:00.000Z" },
-        { startsAt: "2026-06-08T08:30:00.000Z", endsAt: "2026-06-08T10:00:00.000Z" },
         { startsAt: "2026-06-08T09:00:00.000Z", endsAt: "2026-06-08T10:30:00.000Z" },
-        { startsAt: "2026-06-08T09:30:00.000Z", endsAt: "2026-06-08T11:00:00.000Z" },
         { startsAt: "2026-06-08T10:00:00.000Z", endsAt: "2026-06-08T11:30:00.000Z" },
-        { startsAt: "2026-06-08T10:30:00.000Z", endsAt: "2026-06-08T12:00:00.000Z" },
         { startsAt: "2026-06-08T11:00:00.000Z", endsAt: "2026-06-08T12:30:00.000Z" },
-        { startsAt: "2026-06-08T11:30:00.000Z", endsAt: "2026-06-08T13:00:00.000Z" },
         { startsAt: "2026-06-08T12:00:00.000Z", endsAt: "2026-06-08T13:30:00.000Z" },
-        { startsAt: "2026-06-08T12:30:00.000Z", endsAt: "2026-06-08T14:00:00.000Z" },
         { startsAt: "2026-06-08T13:00:00.000Z", endsAt: "2026-06-08T14:30:00.000Z" },
-        { startsAt: "2026-06-08T13:30:00.000Z", endsAt: "2026-06-08T15:00:00.000Z" },
       ],
     });
   });
+
+  it.each([30, 45, 60])(
+    "uses the duration-aware start grid for %d-minute meetings",
+    async (duration) => {
+      const response = await getAvailability(
+        "/api/meeting-types/mt_grid/availability?from=2026-06-08&to=2026-06-08",
+        [{ id: "mt_grid", name: "Grid", description: "Grid", durationMinutes: duration }],
+      );
+      const body = (await response.json()) as {
+        slots: { startsAt: string; endsAt: string }[];
+      };
+      const step = duration > 30 ? 60 : 30;
+      const expectedStarts = Array.from({ length: duration > 30 ? 9 : 18 }, (_, index) => {
+        const minutes = 6 * 60 + index * step;
+        return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+      });
+
+      expect(body.slots.map(({ startsAt }) => startsAt.slice(11, 16))).toEqual(expectedStarts);
+      expect(
+        body.slots.every(
+          ({ startsAt, endsAt }) => Date.parse(endsAt) - Date.parse(startsAt) === duration * 60_000,
+        ),
+      ).toBe(true);
+    },
+  );
 
   it.each([
     ["2026-06-04", "2026-06-05"],

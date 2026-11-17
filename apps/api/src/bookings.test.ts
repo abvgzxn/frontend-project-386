@@ -4,6 +4,7 @@ import { buildApp, type MeetingType } from "./app.js";
 const now = new Date("2026-06-05T08:00:00.000Z");
 const meetingTypes: MeetingType[] = [
   { id: "mt_long", name: "Час", description: "Часовой звонок", durationMinutes: 60 },
+  { id: "mt_45", name: "45 минут", description: "Звонок на 45 минут", durationMinutes: 45 },
   { id: "mt_short", name: "Полчаса", description: "Короткий звонок", durationMinutes: 30 },
 ];
 
@@ -86,6 +87,16 @@ describe("POST /api/bookings", () => {
       "NON_WORKING_TIME",
     ],
     [
+      { meetingTypeId: "mt_45", startsAt: "2026-06-08T07:30:00Z", guestName: "Анна" },
+      400,
+      "NON_WORKING_TIME",
+    ],
+    [
+      { meetingTypeId: "mt_long", startsAt: "2026-06-08T07:30:00Z", guestName: "Анна" },
+      400,
+      "NON_WORKING_TIME",
+    ],
+    [
       { meetingTypeId: "mt_short", startsAt: "2026-06-05T07:00:00Z", guestName: "Анна" },
       400,
       "START_NOT_IN_FUTURE",
@@ -138,6 +149,81 @@ describe("POST /api/bookings", () => {
       guestName: "В",
     });
     expect(adjacent.status).toBe(201);
+  });
+
+  it("keeps the exact 30-minute interval available and applies the hourly grid to longer types", async () => {
+    const url = await server();
+    expect(
+      (
+        await post(url, {
+          meetingTypeId: "mt_short",
+          startsAt: "2026-06-08T07:00:00Z",
+          guestName: "А",
+        })
+      ).status,
+    ).toBe(201);
+
+    const availabilityAfterFirst = await fetch(
+      `${url}/api/meeting-types/mt_short/availability?from=2026-06-08&to=2026-06-08`,
+    );
+    const bodyAfterFirst = (await availabilityAfterFirst.json()) as {
+      slots: { startsAt: string }[];
+    };
+    expect(bodyAfterFirst.slots.some((slot) => slot.startsAt === "2026-06-08T07:30:00.000Z")).toBe(
+      true,
+    );
+
+    expect(
+      (
+        await post(url, {
+          meetingTypeId: "mt_short",
+          startsAt: "2026-06-08T07:30:00Z",
+          guestName: "Б",
+        })
+      ).status,
+    ).toBe(201);
+    expect(
+      (
+        await post(url, {
+          meetingTypeId: "mt_long",
+          startsAt: "2026-06-08T07:30:00Z",
+          guestName: "В",
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await post(url, {
+          meetingTypeId: "mt_long",
+          startsAt: "2026-06-08T07:00:00Z",
+          guestName: "Г",
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await post(url, {
+          meetingTypeId: "mt_long",
+          startsAt: "2026-06-08T08:00:00Z",
+          guestName: "Д",
+        })
+      ).status,
+    ).toBe(201);
+
+    const availability = await fetch(
+      `${url}/api/meeting-types/mt_short/availability?from=2026-06-08&to=2026-06-08`,
+    );
+    const body = (await availability.json()) as { slots: { startsAt: string }[] };
+    expect(body.slots.some((slot) => slot.startsAt === "2026-06-08T09:00:00.000Z")).toBe(true);
+  });
+
+  it.each([
+    ["mt_short", "2026-06-08T07:30:00Z"],
+    ["mt_45", "2026-06-08T08:00:00Z"],
+    ["mt_long", "2026-06-08T09:00:00Z"],
+  ])("accepts a direct request on the %s grid", async (meetingTypeId, startsAt) => {
+    const response = await post(await server(), { meetingTypeId, startsAt, guestName: "Анна" });
+    expect(response.status).toBe(201);
   });
 
   it.each([

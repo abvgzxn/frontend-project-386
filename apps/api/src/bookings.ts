@@ -1,5 +1,11 @@
 import type { MeetingType } from "./meeting-types.js";
-import { addDays, localTimeToUtc, moscowDate, moscowParts } from "./scheduling.js";
+import {
+  addDays,
+  bookingStartStepMinutes,
+  localTimeToUtc,
+  moscowDate,
+  moscowParts,
+} from "./scheduling.js";
 
 export type Booking = {
   id: string;
@@ -87,8 +93,9 @@ export function createBookingRepository(
       const weekday = new Date(`${date}T00:00:00.000Z`).getUTCDay();
       const minute = Number(local.minute);
       const hour = Number(local.hour);
-      if (weekday === 0 || weekday === 6 || hour < 9 || hour >= 18 || minute % 30 !== 0) {
-        return error("NON_WORKING_TIME", "Выберите рабочее время на сетке в 30 минут.");
+      const stepMinutes = bookingStartStepMinutes(meetingType.durationMinutes);
+      if (weekday === 0 || weekday === 6 || hour < 9 || hour >= 18 || minute % stepMinutes !== 0) {
+        return error("NON_WORKING_TIME", "Выберите рабочее время на сетке доступных стартов.");
       }
       const end = new Date(start.getTime() + meetingType.durationMinutes * 60_000);
       const boundary = localTimeToUtc(date, 18, 0);

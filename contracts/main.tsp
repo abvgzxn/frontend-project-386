@@ -16,6 +16,7 @@ model MeetingType {
   id: string;
   name: string;
   description: string;
+  @doc("Duration in minutes. Starts use a 30-minute grid for 30-minute meetings and an hourly grid for longer meetings.")
   durationMinutes: int32;
 }
 
@@ -98,6 +99,7 @@ interface MeetingTypes {
 
   @get
   @route("/meeting-types/{id}/availability")
+  @doc("Returns starts on a 30-minute grid for 30-minute meetings and an hourly grid for longer meetings. Slot ends preserve the meeting duration.")
   availability(
     @path id: string,
     @query from: string,
