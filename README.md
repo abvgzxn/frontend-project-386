@@ -73,6 +73,9 @@ OpenAPI 3.1 и Fetch SDK через Hey API. Инструменты и зада�
 также собранный frontend на том же порту. Данные по-прежнему хранятся в памяти
 и сбрасываются при перезапуске контейнера.
 
+Публичный production deployment (Railway Trial Plan):
+https://web-production-f860ae01.up.railway.app/
+
 Для локальной проверки образа:
 
 ```sh
