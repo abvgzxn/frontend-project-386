@@ -12,7 +12,13 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
-import { meetingTypesCreate, meetingTypesList, type MeetingType } from "@call-calendar/api-client";
+import {
+  meetingTypesAvailability,
+  meetingTypesCreate,
+  meetingTypesList,
+  type AvailabilitySlot,
+  type MeetingType,
+} from "@call-calendar/api-client";
 import "./App.css";
 
 const bookingPath = "/book";
@@ -196,12 +202,63 @@ async function createMeetingTypeFromApi(input: {
   return response.data.meetingType;
 }
 
+type LoadAvailability = (meetingTypeId: string, date: string) => Promise<AvailabilitySlot[]>;
+
+async function loadAvailabilityFromApi(meetingTypeId: string, date: string) {
+  const response = await meetingTypesAvailability({
+    path: { id: meetingTypeId },
+    query: { from: date, to: date },
+  });
+  if (response.error || !response.data) throw new Error("Availability request failed");
+  return response.data.slots;
+}
+
+function moscowDate() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Moscow",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function addDate(date: string, days: number) {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function formatDay(date: string) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "UTC",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })
+    .format(new Date(`${date}T00:00:00.000Z`))
+    .replace(" г.", "");
+}
+
+function formatTime(timestamp: string) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Moscow",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
 function BookingPage({
   loadMeetingTypes = loadMeetingTypesFromApi,
+  loadAvailability = loadAvailabilityFromApi,
 }: {
   loadMeetingTypes?: LoadMeetingTypes;
+  loadAvailability?: LoadAvailability;
 }) {
   const [meetingTypes, setMeetingTypes] = useState<MeetingType[] | null>(null);
+  const [selectedMeetingType, setSelectedMeetingType] = useState<MeetingType | null>(null);
+  const [selectedDate, setSelectedDate] = useState(moscowDate);
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -217,6 +274,25 @@ function BookingPage({
       active = false;
     };
   }, [loadMeetingTypes]);
+
+  useEffect(() => {
+    if (!selectedMeetingType) return;
+    let active = true;
+    setSlots(null);
+    setSelectedSlot(null);
+    void loadAvailability(selectedMeetingType.id, selectedDate)
+      .then((nextSlots) => {
+        if (active) setSlots(nextSlots);
+      })
+      .catch(() => {
+        if (active) setSlots([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadAvailability, selectedDate, selectedMeetingType]);
+
+  const dates = Array.from({ length: 14 }, (_, index) => addDate(moscowDate(), index));
 
   return (
     <main className="booking-page" aria-labelledby="booking-title">
@@ -236,7 +312,15 @@ function BookingPage({
       ) : (
         <Stack className="meeting-type-list" gap="md">
           {meetingTypes.map((meetingType) => (
-            <Card key={meetingType.id} className="meeting-type-card" withBorder>
+            <Card
+              key={meetingType.id}
+              className={`meeting-type-card${selectedMeetingType?.id === meetingType.id ? " selected" : ""}`}
+              withBorder
+              component="button"
+              type="button"
+              onClick={() => setSelectedMeetingType(meetingType)}
+              aria-pressed={selectedMeetingType?.id === meetingType.id}
+            >
               <Group justify="space-between" align="flex-start" wrap="nowrap">
                 <div>
                   <Title order={2}>{meetingType.name}</Title>
@@ -247,6 +331,47 @@ function BookingPage({
             </Card>
           ))}
         </Stack>
+      )}
+      {selectedMeetingType && (
+        <section className="availability-panel" aria-labelledby="availability-title">
+          <Title id="availability-title" order={2}>
+            Выберите день и время
+          </Title>
+          <div className="date-list" aria-label="Дни доступности">
+            {dates.map((date) => (
+              <button
+                className={date === selectedDate ? "date-button selected" : "date-button"}
+                key={date}
+                type="button"
+                aria-pressed={date === selectedDate}
+                onClick={() => setSelectedDate(date)}
+              >
+                {formatDay(date)}
+              </button>
+            ))}
+          </div>
+          {slots === null ? (
+            <Text role="status">Загрузка доступного времени...</Text>
+          ) : slots.length === 0 ? (
+            <Text role="status">На этот день нет доступного времени</Text>
+          ) : (
+            <div className="slot-list" aria-label="Доступное время">
+              {slots.map((slot) => (
+                <button
+                  className={
+                    slot.startsAt === selectedSlot ? "slot-button selected" : "slot-button"
+                  }
+                  key={slot.startsAt}
+                  type="button"
+                  aria-pressed={slot.startsAt === selectedSlot}
+                  onClick={() => setSelectedSlot(slot.startsAt)}
+                >
+                  {formatTime(slot.startsAt)}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
       )}
       <AppLink className="secondary-button" href="/">
         <ArrowIcon direction="left" />
@@ -354,9 +479,11 @@ function OwnerPage({
 export function App({
   loadMeetingTypes,
   createMeetingType,
+  loadAvailability,
 }: {
   loadMeetingTypes?: LoadMeetingTypes;
   createMeetingType?: CreateMeetingType;
+  loadAvailability?: LoadAvailability;
 } = {}) {
   const pathname = usePathname();
   return (
@@ -366,7 +493,7 @@ export function App({
         {pathname === "/owner" ? (
           <OwnerPage createMeetingType={createMeetingType} />
         ) : pathname === bookingPath ? (
-          <BookingPage loadMeetingTypes={loadMeetingTypes} />
+          <BookingPage loadMeetingTypes={loadMeetingTypes} loadAvailability={loadAvailability} />
         ) : (
           <main>
             <HomePage />

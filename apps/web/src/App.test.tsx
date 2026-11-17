@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { App } from "./App.js";
-import type { MeetingType } from "@call-calendar/api-client";
+import type { AvailabilitySlot, MeetingType } from "@call-calendar/api-client";
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -26,13 +26,20 @@ async function renderApp(
   pathname = "/",
   loadMeetingTypes?: () => Promise<MeetingType[]>,
   createMeetingType?: () => Promise<MeetingType>,
+  loadAvailability?: (meetingTypeId: string, date: string) => Promise<AvailabilitySlot[]>,
 ) {
   window.history.replaceState({}, "", pathname);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
   await act(() =>
-    root.render(<App loadMeetingTypes={loadMeetingTypes} createMeetingType={createMeetingType} />),
+    root.render(
+      <App
+        loadMeetingTypes={loadMeetingTypes}
+        createMeetingType={createMeetingType}
+        loadAvailability={loadAvailability}
+      />,
+    ),
   );
 }
 
@@ -83,6 +90,33 @@ describe("public booking journey", () => {
     expect(container.textContent).toContain("Знакомство");
     expect(container.textContent).toContain("Короткий вводный звонок");
     expect(container.textContent).toContain("30 минут");
+  });
+
+  it("selects a meeting type, day, and available start through the availability loader", async () => {
+    const meetingType = {
+      id: "mt_intro",
+      name: "Знакомство",
+      description: "Короткий вводный звонок",
+      durationMinutes: 30,
+    };
+    const loadAvailability = async (_id: string, date: string) => [
+      { startsAt: `${date}T07:00:00.000Z`, endsAt: `${date}T07:30:00.000Z` },
+    ];
+    await renderApp("/book", async () => [meetingType], undefined, loadAvailability);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(".meeting-type-card")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(container.textContent).toContain("Выберите день и время");
+    expect(container.textContent).toContain("10:00");
+    const dayButtons = container.querySelectorAll<HTMLButtonElement>(".date-button");
+    await act(async () => dayButtons[1]?.click());
+    expect(container.querySelectorAll(".date-button.selected")).toHaveLength(1);
+    expect(container.querySelectorAll(".slot-button")).toHaveLength(1);
+    await act(() => container.querySelector<HTMLButtonElement>(".slot-button")?.click());
+    expect(container.querySelectorAll(".slot-button.selected")).toHaveLength(1);
   });
 
   it.each([

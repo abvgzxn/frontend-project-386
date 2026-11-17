@@ -162,11 +162,62 @@ h1 {
   border-color: #373a33;
   background: rgba(28, 30, 28, 0.82);
 }
+.booking-page {
+  width: min(920px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 72px 0 120px;
+}
+.booking-intro {
+  color: #aaa9a2;
+}
+.meeting-type-card {
+  cursor: pointer;
+  text-align: left;
+  border-color: #373a33;
+  background: rgba(28, 30, 28, 0.82);
+  color: #f4f1eb;
+}
+.meeting-type-card:hover,
+.meeting-type-card.selected {
+  border-color: #d5fa76;
+}
+.availability-panel {
+  margin-top: 44px;
+  padding-top: 34px;
+  border-top: 1px solid #373a33;
+}
+.date-list,
+.slot-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 22px 0;
+}
+.date-button,
+.slot-button {
+  min-height: 44px;
+  padding: 9px 14px;
+  border: 1px solid #4a4d43;
+  border-radius: 999px;
+  color: #caccc3;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+.date-button:hover,
+.date-button.selected,
+.slot-button:hover,
+.slot-button.selected {
+  border-color: #d5fa76;
+  color: #0c0d0f;
+  background: #d5fa76;
+}
 .owner-card label {
   color: #caccc3;
 }
 @media (max-width: 680px) {
-  .owner-page {
+  .owner-page,
+  .booking-page {
     width: min(100% - 36px, 720px);
     padding-top: 44px;
   }
