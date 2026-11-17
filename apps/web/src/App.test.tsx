@@ -127,6 +127,77 @@ describe("public booking journey", () => {
     expect(container.querySelectorAll(".slot-button.selected")).toHaveLength(1);
   });
 
+  it("keeps confirmation disabled until a slot and name are selected", async () => {
+    const meetingType = {
+      id: "mt_intro",
+      name: "Знакомство",
+      description: "Короткий вводный звонок",
+      durationMinutes: 30,
+    };
+    const loadAvailability = async (_id: string, date: string) => [
+      { startsAt: `${date}T07:00:00.000Z`, endsAt: `${date}T07:30:00.000Z` },
+    ];
+    await renderApp("/book", async () => [meetingType], undefined, loadAvailability);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(".meeting-type-card")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const submit = container.querySelector<HTMLButtonElement>("button[type=submit]")!;
+    expect(submit.className).toContain("primary-button");
+    expect(submit.className).toContain("booking-submit-button");
+    expect(submit.disabled).toBe(true);
+
+    await act(() => container.querySelector<HTMLButtonElement>(".slot-button")?.click());
+    expect(submit.disabled).toBe(true);
+
+    const name = container.querySelector<HTMLInputElement>('[name="guestName"]')!;
+    await act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(name, "Анна");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(submit.disabled).toBe(false);
+  });
+
+  it("shows a clear loading state while confirming a booking", async () => {
+    const meetingType = {
+      id: "mt_intro",
+      name: "Знакомство",
+      description: "Короткий вводный звонок",
+      durationMinutes: 30,
+    };
+    const loadAvailability = async (_id: string, date: string) => [
+      { startsAt: `${date}T07:00:00.000Z`, endsAt: `${date}T07:30:00.000Z` },
+    ];
+    const createBooking = async () => await new Promise<Booking>(() => undefined);
+    await renderApp("/book", async () => [meetingType], undefined, loadAvailability, createBooking);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(".meeting-type-card")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await act(() => container.querySelector<HTMLButtonElement>(".slot-button")?.click());
+    const name = container.querySelector<HTMLInputElement>('[name="guestName"]')!;
+    await act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(name, "Анна");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      container
+        .querySelector(".booking-confirmation")
+        ?.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const submit = container.querySelector<HTMLButtonElement>("button[type=submit]")!;
+    expect(submit.disabled).toBe(true);
+    expect(submit.getAttribute("aria-busy")).toBe("true");
+    expect(submit.textContent).toContain("Сохраняем запись");
+  });
+
   it.each([
     ["empty", async () => [], "Пока нет доступных типов встреч"],
     ["error", async () => Promise.reject(new Error("network")), "Не удалось загрузить типы встреч"],

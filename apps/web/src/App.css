@@ -262,6 +262,30 @@ h1 {
   box-shadow: 0 16px 36px rgba(180, 167, 255, 0.2);
   transform: translateY(-2px);
 }
+.booking-submit-button {
+  width: min(100%, 320px);
+  justify-content: center;
+  margin-top: 22px;
+}
+.booking-submit-button:focus-visible {
+  outline: 3px solid #d5fa76;
+  outline-offset: 4px;
+}
+.booking-submit-button:disabled,
+.booking-submit-button[data-disabled] {
+  color: #858b79;
+  background: #292d26;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 1;
+  transform: none;
+}
+.booking-submit-button[data-loading] {
+  color: #0c0d0f;
+  background: linear-gradient(110deg, #d5fa76 0%, #9ce5af 49%, #b4a7ff 100%);
+  cursor: wait;
+  opacity: 0.82;
+}
 .abstract-graphic {
   position: relative;
   min-height: 500px;
@@ -544,6 +568,9 @@ h1 {
   .primary-button {
     width: 100%;
     justify-content: center;
+  }
+  .booking-submit-button {
+    width: 100%;
   }
   .abstract-graphic {
     min-height: 340px;

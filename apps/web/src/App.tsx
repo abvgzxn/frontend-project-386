@@ -483,11 +483,13 @@ function BookingPage({
                   required
                 />
                 <Button
+                  className="primary-button booking-submit-button"
                   type="submit"
                   loading={submitting}
-                  disabled={!selectedStart || !guestName.trim()}
+                  disabled={!selectedStart || !guestName.trim() || submitting}
+                  aria-busy={submitting}
                 >
-                  Подтвердить запись
+                  {submitting ? "Сохраняем запись..." : "Подтвердить запись"}
                 </Button>
               </>
             )}
