@@ -14,6 +14,7 @@ export function createMeetingTypeRepository(meetingTypes: MeetingType[] = []) {
   let nextId = meetingTypes.length + 1;
   return {
     list: () => meetingTypes,
+    get: (id: string) => meetingTypes.find((meetingType) => meetingType.id === id),
     create: (
       input: unknown,
     ): { meetingType: MeetingType } | { error: MeetingTypeValidationError } => {

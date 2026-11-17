@@ -33,6 +33,18 @@ model MeetingTypeResponse {
   meetingType: MeetingType;
 }
 
+model AvailabilitySlot {
+  startsAt: string;
+  endsAt: string;
+}
+
+model MeetingTypeAvailabilityResponse {
+  meetingTypeId: string;
+  from: string;
+  to: string;
+  slots: AvailabilitySlot[];
+}
+
 model ErrorResponse {
   code: string;
   message: string;
@@ -58,6 +70,20 @@ interface MeetingTypes {
     @body body: MeetingTypeResponse;
   } | {
     @statusCode statusCode: 400;
+    @body body: ErrorResponse;
+  };
+
+  @get
+  @route("/meeting-types/{id}/availability")
+  availability(
+    @path id: string,
+    @query from: string,
+    @query to: string,
+  ): MeetingTypeAvailabilityResponse | {
+    @statusCode statusCode: 400;
+    @body body: ErrorResponse;
+  } | {
+    @statusCode statusCode: 404;
     @body body: ErrorResponse;
   };
 }

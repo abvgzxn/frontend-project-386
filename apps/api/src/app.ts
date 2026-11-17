@@ -1,15 +1,18 @@
 import Fastify from "fastify";
+import { getAvailability } from "./availability.js";
 import { createMeetingTypeRepository, type MeetingType } from "./meeting-types.js";
 
 export type { MeetingType } from "./meeting-types.js";
 
 type AppOptions = {
   meetingTypes?: MeetingType[];
+  now?: () => Date;
 };
 
 export function buildApp(options: AppOptions = {}) {
   const app = Fastify({ logger: false });
   const meetingTypeRepository = createMeetingTypeRepository(options.meetingTypes);
+  const now = options.now ?? (() => new Date());
 
   app.get(
     "/api/health",
@@ -90,6 +93,57 @@ export function buildApp(options: AppOptions = {}) {
       const result = meetingTypeRepository.create(request.body);
       if ("error" in result) return reply.code(400).send(result.error);
       return reply.code(201).send(result);
+    },
+  );
+
+  app.get<{ Params: { id: string }; Querystring: { from?: string; to?: string } }>(
+    "/api/meeting-types/:id/availability",
+    {
+      schema: {
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              meetingTypeId: { type: "string" },
+              from: { type: "string" },
+              to: { type: "string" },
+              slots: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { startsAt: { type: "string" }, endsAt: { type: "string" } },
+                  required: ["startsAt", "endsAt"],
+                },
+              },
+            },
+            required: ["meetingTypeId", "from", "to", "slots"],
+          },
+          400: {
+            type: "object",
+            properties: { code: { type: "string" }, message: { type: "string" } },
+            required: ["code", "message"],
+          },
+          404: {
+            type: "object",
+            properties: { code: { type: "string" }, message: { type: "string" } },
+            required: ["code", "message"],
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = getAvailability(
+        meetingTypeRepository.get(request.params.id),
+        request.query.from,
+        request.query.to,
+        now(),
+      );
+      if ("error" in result) {
+        return reply
+          .code(result.error.code === "MEETING_TYPE_NOT_FOUND" ? 404 : 400)
+          .send(result.error);
+      }
+      return result;
     },
   );
 
