@@ -319,6 +319,46 @@ h1 {
   justify-content: center;
   padding: 90px 0;
 }
+.booking-page {
+  width: min(820px, calc(100% - 64px));
+  min-height: calc(100vh - 180px);
+  margin: 0 auto;
+  padding: 90px 0;
+}
+.booking-page h1 {
+  max-width: 700px;
+  margin-bottom: 20px;
+  font-size: clamp(3rem, 7vw, 5.7rem);
+}
+.booking-intro {
+  max-width: 480px;
+  margin-bottom: 42px;
+  color: #aaa9a2;
+  font-size: 18px;
+  line-height: 1.55;
+}
+.meeting-type-list {
+  max-width: 700px;
+}
+.meeting-type-card {
+  border-color: #373a33;
+  background: rgba(28, 30, 28, 0.9);
+  color: #f4f1eb;
+}
+.meeting-type-card h2 {
+  margin-bottom: 8px;
+  color: #f4f1eb;
+  font-size: 24px;
+}
+.meeting-type-card p {
+  color: #aaa9a2;
+}
+.duration {
+  flex: 0 0 auto;
+  color: #d5fa76;
+  font-size: 14px;
+  white-space: nowrap;
+}
 .placeholder-icon {
   display: grid;
   width: 58px;
@@ -430,6 +470,14 @@ h1 {
     width: min(100% - 40px, 560px);
     min-height: calc(100vh - 130px);
     padding: 60px 0;
+  }
+  .booking-page {
+    width: min(100% - 40px, 560px);
+    min-height: calc(100vh - 130px);
+    padding: 60px 0;
+  }
+  .booking-page h1 {
+    font-size: clamp(3.2rem, 15vw, 5rem);
   }
   .placeholder-page h1 {
     font-size: clamp(3.2rem, 15vw, 5rem);

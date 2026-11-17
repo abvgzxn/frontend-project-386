@@ -1,4 +1,6 @@
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import { Alert, Card, Group, MantineProvider, Stack, Text, Title } from "@mantine/core";
+import { meetingTypesList, type MeetingType } from "@call-calendar/api-client";
 import "./App.css";
 
 const bookingPath = "/book";
@@ -156,7 +158,7 @@ function HomePage() {
           <li>
             <span className="step-number">03</span>
             <h3>Подтвердите запись</h3>
-            <p>Оставьте нужный контекст и завершите договорённость о звонке.</p>
+            <p>Подтвердите выбранное время и завершите договорённость о звонке.</p>
           </li>
         </ol>
       </section>
@@ -164,18 +166,66 @@ function HomePage() {
   );
 }
 
-function BookingPlaceholder() {
+type LoadMeetingTypes = () => Promise<MeetingType[]>;
+
+async function loadMeetingTypesFromApi() {
+  const response = await meetingTypesList();
+  if (response.error || !response.data) throw new Error("Meeting types request failed");
+  return response.data.meetingTypes;
+}
+
+function BookingPage({
+  loadMeetingTypes = loadMeetingTypesFromApi,
+}: {
+  loadMeetingTypes?: LoadMeetingTypes;
+}) {
+  const [meetingTypes, setMeetingTypes] = useState<MeetingType[] | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void loadMeetingTypes()
+      .then((types) => {
+        if (active) setMeetingTypes(types);
+      })
+      .catch(() => {
+        if (active) setError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadMeetingTypes]);
+
   return (
-    <main className="placeholder-page" aria-labelledby="placeholder-title">
-      <div className="placeholder-icon" aria-hidden="true">
-        <ArrowIcon />
-      </div>
+    <main className="booking-page" aria-labelledby="booking-title">
       <p className="eyebrow">Страница записи</p>
-      <h1 id="placeholder-title">Запись на звонок скоро будет доступна</h1>
-      <p>
-        Мы готовим страницу записи, где можно будет выбрать формат встречи и удобное время.
-        Вернитесь немного позже.
-      </p>
+      <Title id="booking-title" order={1}>
+        Выберите формат встречи
+      </Title>
+      <Text className="booking-intro">Найдите подходящий вариант разговора, чтобы продолжить.</Text>
+      {error ? (
+        <Alert color="red" title="Не удалось загрузить типы встреч">
+          Попробуйте обновить страницу.
+        </Alert>
+      ) : meetingTypes === null ? (
+        <Text role="status">Загрузка типов встреч...</Text>
+      ) : meetingTypes.length === 0 ? (
+        <Text role="status">Пока нет доступных типов встреч</Text>
+      ) : (
+        <Stack className="meeting-type-list" gap="md">
+          {meetingTypes.map((meetingType) => (
+            <Card key={meetingType.id} className="meeting-type-card" withBorder>
+              <Group justify="space-between" align="flex-start" wrap="nowrap">
+                <div>
+                  <Title order={2}>{meetingType.name}</Title>
+                  <Text>{meetingType.description}</Text>
+                </div>
+                <Text className="duration">{meetingType.durationMinutes} минут</Text>
+              </Group>
+            </Card>
+          ))}
+        </Stack>
+      )}
       <AppLink className="secondary-button" href="/">
         <ArrowIcon direction="left" />
         Вернуться на главную
@@ -184,22 +234,24 @@ function BookingPlaceholder() {
   );
 }
 
-export function App() {
+export function App({ loadMeetingTypes }: { loadMeetingTypes?: LoadMeetingTypes } = {}) {
   const pathname = usePathname();
   return (
-    <div className="app-shell">
-      <Header />
-      {pathname === bookingPath ? (
-        <BookingPlaceholder />
-      ) : (
-        <main>
-          <HomePage />
-        </main>
-      )}
-      <footer className="site-footer">
-        <span>Календарь звонков</span>
-        <span>Разговоры, которые удобно планировать</span>
-      </footer>
-    </div>
+    <MantineProvider>
+      <div className="app-shell">
+        <Header />
+        {pathname === bookingPath ? (
+          <BookingPage loadMeetingTypes={loadMeetingTypes} />
+        ) : (
+          <main>
+            <HomePage />
+          </main>
+        )}
+        <footer className="site-footer">
+          <span>Календарь звонков</span>
+          <span>Разговоры, которые удобно планировать</span>
+        </footer>
+      </div>
+    </MantineProvider>
   );
 }

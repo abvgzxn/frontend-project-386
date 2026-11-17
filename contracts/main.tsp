@@ -12,9 +12,27 @@ model HealthResponse {
   status: "ok";
 }
 
+model MeetingType {
+  id: string;
+  name: string;
+  description: string;
+  durationMinutes: int32;
+}
+
+model MeetingTypesResponse {
+  meetingTypes: MeetingType[];
+}
+
 @route("/api")
 interface Health {
   @get
   @route("/health")
   health(): HealthResponse;
+}
+
+@route("/api")
+interface MeetingTypes {
+  @get
+  @route("/meeting-types")
+  list(): MeetingTypesResponse;
 }
