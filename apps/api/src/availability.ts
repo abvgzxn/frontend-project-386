@@ -1,4 +1,5 @@
 import type { MeetingType } from "./meeting-types.js";
+import type { Booking } from "./bookings.js";
 
 const timeZone = "Europe/Moscow";
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -73,6 +74,7 @@ export function getAvailability(
   from: string | undefined,
   to: string | undefined,
   now: Date,
+  bookings: Booking[] = [],
 ):
   | { meetingTypeId: string; from: string; to: string; slots: AvailabilitySlot[] }
   | { error: AvailabilityError } {
@@ -104,7 +106,15 @@ export function getAvailability(
       const start = localTimeToUtc(date, Math.floor(minutes / 60), minutes % 60);
       const end = localTimeToUtc(date, Math.floor(endMinutes / 60), endMinutes % 60);
       if (start <= now) continue;
-      slots.push({ startsAt: formatTimestamp(start), endsAt: formatTimestamp(end) });
+      const startsAt = formatTimestamp(start);
+      const endsAt = formatTimestamp(end);
+      if (
+        !bookings.some(
+          (booking) => start < new Date(booking.endsAt) && end > new Date(booking.startsAt),
+        )
+      ) {
+        slots.push({ startsAt, endsAt });
+      }
     }
   }
 

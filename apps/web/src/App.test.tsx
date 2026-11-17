@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { App } from "./App.js";
-import type { AvailabilitySlot, MeetingType } from "@call-calendar/api-client";
+import type { AvailabilitySlot, Booking, MeetingType } from "@call-calendar/api-client";
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;
@@ -27,6 +27,11 @@ async function renderApp(
   loadMeetingTypes?: () => Promise<MeetingType[]>,
   createMeetingType?: () => Promise<MeetingType>,
   loadAvailability?: (meetingTypeId: string, date: string) => Promise<AvailabilitySlot[]>,
+  createBooking?: (input: {
+    meetingTypeId: string;
+    startsAt: string;
+    guestName: string;
+  }) => Promise<Booking>,
 ) {
   window.history.replaceState({}, "", pathname);
   container = document.createElement("div");
@@ -38,6 +43,7 @@ async function renderApp(
         loadMeetingTypes={loadMeetingTypes}
         createMeetingType={createMeetingType}
         loadAvailability={loadAvailability}
+        createBooking={createBooking}
       />,
     ),
   );
@@ -138,6 +144,57 @@ describe("public booking journey", () => {
 
     expect(window.location.pathname).toBe("/");
     expect(container.querySelector("h1")?.textContent).toBe("Запишитесь на удобный звонок");
+  });
+
+  it("recovers from a conflict without resubmitting the stale start", async () => {
+    const meetingType = {
+      id: "mt_intro",
+      name: "Знакомство",
+      description: "Короткий вводный звонок",
+      durationMinutes: 30,
+    };
+    const oldSlot = { startsAt: "2026-06-08T07:00:00.000Z", endsAt: "2026-06-08T07:30:00.000Z" };
+    const freshSlot = { startsAt: "2026-06-08T07:30:00.000Z", endsAt: "2026-06-08T08:00:00.000Z" };
+    let availabilityCalls = 0;
+    let bookingCalls = 0;
+    await renderApp(
+      "/book",
+      async () => [meetingType],
+      undefined,
+      async () => {
+        availabilityCalls += 1;
+        return availabilityCalls === 1 ? [oldSlot] : [freshSlot];
+      },
+      async () => {
+        bookingCalls += 1;
+        const error = new Error("Выбранное время уже занято") as Error & { code: string };
+        error.code = "SLOT_UNAVAILABLE";
+        throw error;
+      },
+    );
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(".meeting-type-card")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await act(() => container.querySelector<HTMLButtonElement>(".slot-button")?.click());
+    const name = container.querySelector<HTMLInputElement>('[name="guestName"]')!;
+    await act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(name, "Анна");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      container
+        .querySelector(".booking-confirmation")
+        ?.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(container.textContent).toContain("Выбранное время уже занято");
+    expect(container.textContent).toContain("10:30");
+    expect(container.querySelectorAll(".slot-button.selected")).toHaveLength(0);
+    expect(availabilityCalls).toBe(2);
+    expect(bookingCalls).toBe(1);
+    expect(container.querySelector<HTMLButtonElement>("button[type=submit]")?.disabled).toBe(true);
   });
 });
 

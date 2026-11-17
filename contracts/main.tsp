@@ -45,6 +45,29 @@ model MeetingTypeAvailabilityResponse {
   slots: AvailabilitySlot[];
 }
 
+model Booking {
+  id: string;
+  meetingTypeId: string;
+  guestName: string;
+  startsAt: string;
+  endsAt: string;
+  createdAt: string;
+}
+
+model CreateBookingRequest {
+  meetingTypeId: string;
+  startsAt: string;
+  guestName: string;
+}
+
+model BookingResponse {
+  booking: Booking;
+}
+
+model BookingsResponse {
+  bookings: Booking[];
+}
+
 model ErrorResponse {
   code: string;
   message: string;
@@ -86,4 +109,27 @@ interface MeetingTypes {
     @statusCode statusCode: 404;
     @body body: ErrorResponse;
   };
+}
+
+@route("/api")
+interface Bookings {
+  @post
+  @route("/bookings")
+  create(@body body: CreateBookingRequest): {
+    @statusCode statusCode: 201;
+    @body body: BookingResponse;
+  } | {
+    @statusCode statusCode: 400;
+    @body body: ErrorResponse;
+  } | {
+    @statusCode statusCode: 404;
+    @body body: ErrorResponse;
+  } | {
+    @statusCode statusCode: 409;
+    @body body: ErrorResponse;
+  };
+
+  @get
+  @route("/bookings/upcoming")
+  upcoming(): BookingsResponse;
 }
